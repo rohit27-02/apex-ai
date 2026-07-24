@@ -1,0 +1,157 @@
+{
+  "$defs": {
+    "CostCounters": {
+      "properties": {
+        "model_calls": {
+          "default": 0,
+          "title": "Model Calls",
+          "type": "integer"
+        },
+        "seconds": {
+          "default": 0.0,
+          "title": "Seconds",
+          "type": "number"
+        }
+      },
+      "title": "CostCounters",
+      "type": "object"
+    },
+    "CriterionResult": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "command": {
+          "title": "Command",
+          "type": "string"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "exit_code": {
+          "title": "Exit Code",
+          "type": "integer"
+        },
+        "evidence": {
+          "title": "Evidence",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "description",
+        "command",
+        "status",
+        "exit_code",
+        "evidence"
+      ],
+      "title": "CriterionResult",
+      "type": "object"
+    },
+    "NodeState": {
+      "properties": {
+        "status": {
+          "default": "pending",
+          "title": "Status",
+          "type": "string"
+        },
+        "summary": {
+          "default": "",
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "title": "NodeState",
+      "type": "object"
+    },
+    "RunEvent": {
+      "properties": {
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "node_id": {
+          "title": "Node Id",
+          "type": "string"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "payload": {
+          "additionalProperties": true,
+          "title": "Payload",
+          "type": "object"
+        }
+      },
+      "required": [
+        "ts",
+        "node_id",
+        "type"
+      ],
+      "title": "RunEvent",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "run_id": {
+      "title": "Run Id",
+      "type": "string"
+    },
+    "status": {
+      "title": "Status",
+      "type": "string"
+    },
+    "attempt": {
+      "title": "Attempt",
+      "type": "integer"
+    },
+    "max_attempts": {
+      "title": "Max Attempts",
+      "type": "integer"
+    },
+    "started_at": {
+      "title": "Started At",
+      "type": "string"
+    },
+    "cost": {
+      "$ref": "#/$defs/CostCounters"
+    },
+    "node_states": {
+      "additionalProperties": {
+        "$ref": "#/$defs/NodeState"
+      },
+      "title": "Node States",
+      "type": "object"
+    },
+    "events": {
+      "items": {
+        "$ref": "#/$defs/RunEvent"
+      },
+      "title": "Events",
+      "type": "array"
+    },
+    "criteria": {
+      "items": {
+        "$ref": "#/$defs/CriterionResult"
+      },
+      "title": "Criteria",
+      "type": "array"
+    }
+  },
+  "required": [
+    "run_id",
+    "status",
+    "attempt",
+    "max_attempts",
+    "started_at"
+  ],
+  "title": "RunState",
+  "type": "object"
+}

@@ -1,14 +1,15 @@
 """Shared data contracts for the autonomous coding loop.
 
-These types are the integration boundary between all team members.
-FROZEN after the contract meeting — do not rename fields without telling the team.
+Aligned with Person A's implementation. FROZEN after contract meeting.
 """
 
 from __future__ import annotations
 
+from datetime import datetime
+from enum import Enum
 from pathlib import Path
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 # ---------------------------------------------------------------------------
@@ -18,63 +19,54 @@ from pydantic import BaseModel, Field
 class RunnerResult(BaseModel):
     """Returned by Runner.run() after each agent execution step."""
 
-    transcript_path: str         # path to persisted JSONL transcript
-    files_changed: list[str]     # relative paths from repo root
+    transcript_path: str
+    files_changed: list[str]
     status: str                  # "success" | "failed" | "timeout"
-    model_calls: int             # count of LLM interactions in this run
+    model_calls: int
 
 
 # ---------------------------------------------------------------------------
-# Run state contract (Person A owns, Person C renders, Person B contributes)
+# Enums (Person A's definitions)
 # ---------------------------------------------------------------------------
 
-class CostCounters(BaseModel):
-    model_calls: int = 0
-    seconds: float = 0.0
+class NodeType(str, Enum):
+    input = "input"
+    agent = "agent"
+    command = "command"
+    validator = "validator"
+    decision = "decision"
+    human_gate = "human_gate"
+    success = "success"
+    stop = "stop"
 
 
-class NodeState(BaseModel):
-    status: str = "pending"      # "pending" | "running" | "success" | "failed" | "skipped"
-    summary: str = ""
+class EdgeOutcome(str, Enum):
+    success = "success"
+    failure = "failure"
 
 
-class RunEvent(BaseModel):
-    ts: str                      # ISO timestamp
-    node_id: str
-    type: str                    # "node_started" | "node_completed" | "node_failed"
-    payload: dict = Field(default_factory=dict)
+class RunStatus(str, Enum):
+    created = "created"
+    running = "running"
+    awaiting_approval = "awaiting_approval"
+    success = "success"
+    failed = "failed"
+    stopped_safely = "stopped_safely"
+    rolled_back = "rolled_back"
 
 
-class CriterionResult(BaseModel):
-    id: str
-    description: str
-    command: str
-    type: str = "command"              # "test" | "lint" | "command"
-    status: str = ""                   # "pass" | "fail" | "error"
-    exit_code: int | None = None
-    expected_exit_code: int = 0
-    duration_s: float = 0.0
-    evidence: str = ""
+class NodeStatus(str, Enum):
+    pending = "pending"
+    running = "running"
+    success = "success"
+    failed = "failed"
+    skipped = "skipped"
 
 
-class RunState(BaseModel):
-    run_id: str
-    status: str                  # "running" | "success" | "stopped" | "failed"
-    attempt: int                 # 1-indexed
-    max_attempts: int
-    started_at: str              # ISO timestamp
-    cost: CostCounters = Field(default_factory=CostCounters)
-    node_states: dict[str, NodeState] = Field(default_factory=dict)
-    events: list[RunEvent] = Field(default_factory=list)
-    criteria: list[CriterionResult] = Field(default_factory=list)
-
-    def save(self, path: Path) -> None:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(self.model_dump_json(indent=2))
-
-    @classmethod
-    def load(cls, path: Path) -> RunState:
-        return cls.model_validate_json(path.read_text())
+class CriterionStatus(str, Enum):
+    pending = "pending"
+    passed = "passed"
+    failed = "failed"
 
 
 # ---------------------------------------------------------------------------
@@ -83,25 +75,33 @@ class RunState(BaseModel):
 
 class WorkflowNode(BaseModel):
     id: str
-    type: str                    # "input" | "agent" | "command" | "validator" | "decision" | "human_gate" | "terminal"
-    name: str
-    config: dict = Field(default_factory=dict)
+    type: NodeType
+    config: dict = {}
 
 
 class WorkflowEdge(BaseModel):
-    from_node: str = Field(alias="from")
-    to_node: str = Field(alias="to")
-    on: str = "success"          # "success" | "failure" | "max_attempts"
-
-    model_config = {"populate_by_name": True}
+    source: str
+    target: str
+    on: EdgeOutcome
 
 
 class Workflow(BaseModel):
-    name: str
+    entryNode: str
     nodes: list[WorkflowNode]
     edges: list[WorkflowEdge]
-    max_attempts: int = 3
-    repo_path: str = ""
+
+    def get_node(self, node_id: str) -> WorkflowNode:
+        for n in self.nodes:
+            if n.id == node_id:
+                return n
+        raise KeyError(f"Node {node_id!r} not found")
+
+    def next_node(self, current_id: str, outcome: EdgeOutcome) -> str | None:
+        """Follow edges from current_id based on outcome."""
+        for e in self.edges:
+            if e.source == current_id and e.on == outcome:
+                return e.target
+        return None
 
     def save(self, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -111,18 +111,56 @@ class Workflow(BaseModel):
     def load(cls, path: Path) -> Workflow:
         return cls.model_validate_json(path.read_text())
 
-    def get_node(self, node_id: str) -> WorkflowNode:
-        for n in self.nodes:
-            if n.id == node_id:
-                return n
-        raise KeyError(f"Node {node_id!r} not found")
 
-    def next_node(self, current_id: str, outcome: str) -> str | None:
-        """Follow edges from current_id based on outcome."""
-        for e in self.edges:
-            if e.from_node == current_id and e.on == outcome:
-                return e.to_node
-        return None
+# ---------------------------------------------------------------------------
+# Run state contract (Person A owns, Person C renders, Person B contributes)
+# ---------------------------------------------------------------------------
 
-    def entry_node(self) -> str:
-        return self.nodes[0].id if self.nodes else ""
+class RunCreateRequest(BaseModel):
+    workflow: Workflow
+    objective: str
+    maxAttempts: int
+
+
+class NodeState(BaseModel):
+    status: NodeStatus
+    started_at: datetime | None = None
+    ended_at: datetime | None = None
+    result_summary: str | None = None
+
+
+class Event(BaseModel):
+    timestamp: datetime
+    node_id: str
+    type: str
+    payload: dict = {}
+
+
+class Criterion(BaseModel):
+    id: str
+    description: str
+    command: str
+    expect_exit_code: int
+    status: CriterionStatus
+
+
+class RunState(BaseModel):
+    run_id: str
+    status: RunStatus
+    attempt: int
+    max_attempts: int
+    objective: str
+    started_at: datetime
+    updated_at: datetime
+    delivered: bool
+    node_states: dict[str, NodeState]
+    events: list[Event]
+    criteria: list[Criterion]
+
+    def save(self, path: Path) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(self.model_dump_json(indent=2))
+
+    @classmethod
+    def load(cls, path: Path) -> RunState:
+        return cls.model_validate_json(path.read_text())

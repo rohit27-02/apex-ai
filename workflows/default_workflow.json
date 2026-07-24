@@ -1,0 +1,60 @@
+{
+  "entryNode": "criteria",
+  "nodes": [
+    {
+      "id": "criteria",
+      "type": "agent",
+      "config": {
+        "prompt_file": "prompts/criteria.txt",
+        "model": "groq/llama-3.3-70b-versatile"
+      }
+    },
+    {
+      "id": "planning",
+      "type": "agent",
+      "config": {
+        "prompt_file": "prompts/planning.txt",
+        "model": "groq/llama-3.3-70b-versatile"
+      }
+    },
+    {
+      "id": "execution",
+      "type": "agent",
+      "config": {
+        "prompt_file": "prompts/execution.txt",
+        "model": "groq/llama-3.3-70b-versatile",
+        "tools": ["Read", "Edit", "Write", "Bash"]
+      }
+    },
+    {
+      "id": "validation",
+      "type": "validator",
+      "config": {}
+    },
+    {
+      "id": "human_gate",
+      "type": "human_gate",
+      "config": {
+        "auto_approve": true
+      }
+    },
+    {
+      "id": "success",
+      "type": "success",
+      "config": {}
+    },
+    {
+      "id": "stop",
+      "type": "stop",
+      "config": {}
+    }
+  ],
+  "edges": [
+    { "source": "criteria", "target": "planning", "on": "success" },
+    { "source": "planning", "target": "execution", "on": "success" },
+    { "source": "execution", "target": "validation", "on": "success" },
+    { "source": "validation", "target": "human_gate", "on": "success" },
+    { "source": "validation", "target": "planning", "on": "failure" },
+    { "source": "human_gate", "target": "success", "on": "success" }
+  ]
+}

@@ -1,0 +1,92 @@
+{
+  "$defs": {
+    "WorkflowEdge": {
+      "properties": {
+        "from": {
+          "title": "From",
+          "type": "string"
+        },
+        "to": {
+          "title": "To",
+          "type": "string"
+        },
+        "on": {
+          "default": "success",
+          "title": "On",
+          "type": "string"
+        }
+      },
+      "required": [
+        "from",
+        "to"
+      ],
+      "title": "WorkflowEdge",
+      "type": "object"
+    },
+    "WorkflowNode": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "config": {
+          "additionalProperties": true,
+          "title": "Config",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "name"
+      ],
+      "title": "WorkflowNode",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "nodes": {
+      "items": {
+        "$ref": "#/$defs/WorkflowNode"
+      },
+      "title": "Nodes",
+      "type": "array"
+    },
+    "edges": {
+      "items": {
+        "$ref": "#/$defs/WorkflowEdge"
+      },
+      "title": "Edges",
+      "type": "array"
+    },
+    "max_attempts": {
+      "default": 3,
+      "title": "Max Attempts",
+      "type": "integer"
+    },
+    "repo_path": {
+      "default": "",
+      "title": "Repo Path",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "nodes",
+    "edges"
+  ],
+  "title": "Workflow",
+  "type": "object"
+}
