@@ -1,12 +1,9 @@
-"""Success Criteria Agent handler.
-
-Loads the criteria prompt, fills in context, calls the runner,
-and parses the JSON output into run.criteria.
-"""
+"""Success Criteria Agent handler."""
 
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -16,6 +13,22 @@ from contracts.models import WorkflowNode, RunState, Criterion, CriterionStatus
 def handle(node: WorkflowNode, run: RunState, repo_path: str) -> dict:
     """Generate success criteria from the objective."""
     from runners import AiderRunner
+
+    # Get model and api_key from node config
+    model = node.config.get("model", "groq/llama-3.3-70b-versatile")
+    api_key = node.config.get("api_key", "")
+
+    # Set API key in environment for the runner
+    if api_key:
+        provider = model.split("/")[0] if "/" in model else ""
+        env_map = {
+            "groq": "GROQ_API_KEY",
+            "gemini": "GEMINI_API_KEY",
+            "deepseek": "DEEPSEEK_API_KEY",
+            "openai": "OPENAI_API_KEY",
+        }
+        env_var = env_map.get(provider, "GROQ_API_KEY")
+        os.environ[env_var] = api_key
 
     # Load prompt template
     prompt_file = node.config.get("prompt_file", "prompts/criteria.txt")
@@ -31,7 +44,6 @@ def handle(node: WorkflowNode, run: RunState, repo_path: str) -> dict:
     prompt = prompt.replace("{constraints}", "")
 
     # Run agent
-    model = node.config.get("model", "groq/llama-3.3-70b-versatile")
     runner = AiderRunner(model=model)
     result = runner.run(prompt, cwd=repo_path)
 
@@ -77,7 +89,6 @@ def _parse_criteria(transcript_path: str) -> list[Criterion]:
     except Exception:
         pass
 
-    # Fallback
     return [
         Criterion(id="tests", description="All tests pass", command="pytest -q", expect_exit_code=0, status=CriterionStatus.pending),
         Criterion(id="lint", description="Lint passes", command="ruff check .", expect_exit_code=0, status=CriterionStatus.pending),

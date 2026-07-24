@@ -2,7 +2,7 @@ import { RunSchema, type ValidatedRun } from './validation';
 import type { Workflow } from '@/types/workflow';
 import { toBackendWorkflow } from './workflow-adapter';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:3001';
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8000';
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -26,7 +26,8 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 export async function createRun(
   workflow: Workflow,
   objective: string,
-  maxAttempts?: number
+  maxAttempts?: number,
+  repoPath?: string,
 ): Promise<ValidatedRun> {
   const backendWorkflow = toBackendWorkflow(workflow);
   const data = await request<{
@@ -47,6 +48,7 @@ export async function createRun(
       workflow: backendWorkflow,
       objective,
       maxAttempts: maxAttempts ?? workflow.maxAttempts,
+      repo_path: repoPath || 'target-repo',
     }),
   });
   return RunSchema.parse(data);
