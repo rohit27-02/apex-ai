@@ -14,6 +14,11 @@ build/
 .run_output/
 runs/
 
+# Node.js
+node_modules/
+.next/
+out/
+
 # IDE
 .vscode/
 .idea/

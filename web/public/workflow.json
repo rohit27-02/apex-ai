@@ -1,0 +1,104 @@
+{
+  "id": "default-loop",
+  "name": "Autonomous Coding Loop",
+  "maxAttempts": 3,
+  "createdAt": "2026-07-24T00:00:00.000Z",
+  "updatedAt": "2026-07-24T00:00:00.000Z",
+  "nodes": [
+    {
+      "id": "input",
+      "type": "input",
+      "name": "Coding Objective",
+      "config": { "objective": "", "constraints": [] },
+      "position": { "x": 50, "y": 250 }
+    },
+    {
+      "id": "criteria",
+      "type": "agent",
+      "name": "Success Criteria Agent",
+      "config": {
+        "model": "claude-sonnet-4-20250514",
+        "instructions": "Convert the engineering objective into measurable completion criteria.",
+        "tools": ["read_file", "list_files"]
+      },
+      "position": { "x": 300, "y": 250 }
+    },
+    {
+      "id": "planning",
+      "type": "agent",
+      "name": "Planning Agent",
+      "config": {
+        "model": "claude-sonnet-4-20250514",
+        "instructions": "Create a concrete implementation plan naming real files and modules.",
+        "tools": ["read_file", "list_files", "search"]
+      },
+      "position": { "x": 550, "y": 250 }
+    },
+    {
+      "id": "execution",
+      "type": "agent",
+      "name": "Execution Agent",
+      "config": {
+        "model": "claude-sonnet-4-20250514",
+        "instructions": "Implement the changes according to the plan.",
+        "tools": ["read_file", "write_file", "edit_file", "run_command", "search"]
+      },
+      "position": { "x": 800, "y": 250 }
+    },
+    {
+      "id": "validation",
+      "type": "validator",
+      "name": "Validation Agent",
+      "config": {
+        "criteria": [
+          "Project builds successfully",
+          "Existing tests pass",
+          "No lint errors",
+          "Type checking passes"
+        ],
+        "retryLimit": 3
+      },
+      "position": { "x": 1050, "y": 250 }
+    },
+    {
+      "id": "decision",
+      "type": "decision",
+      "name": "Pass / Fail?",
+      "config": { "condition": "all criteria passed" },
+      "position": { "x": 1300, "y": 250 }
+    },
+    {
+      "id": "human-gate",
+      "type": "human_gate",
+      "name": "Human Approval",
+      "config": { "prompt": "Review changes and approve?", "required": false },
+      "position": { "x": 1300, "y": 450 }
+    },
+    {
+      "id": "success",
+      "type": "success",
+      "name": "Task Complete",
+      "config": { "message": "All criteria met. Task delivered." },
+      "position": { "x": 1550, "y": 150 }
+    },
+    {
+      "id": "stop",
+      "type": "stop",
+      "name": "Stopped Safely",
+      "config": { "reason": "Max attempts exhausted" },
+      "position": { "x": 1550, "y": 400 }
+    }
+  ],
+  "edges": [
+    { "id": "e-input-criteria", "source": "input", "target": "criteria", "type": "default" },
+    { "id": "e-criteria-planning", "source": "criteria", "target": "planning", "type": "default" },
+    { "id": "e-planning-execution", "source": "planning", "target": "execution", "type": "default" },
+    { "id": "e-execution-validation", "source": "execution", "target": "validation", "type": "default" },
+    { "id": "e-validation-decision", "source": "validation", "target": "decision", "type": "default" },
+    { "id": "e-decision-success", "source": "decision", "target": "success", "label": "pass", "type": "success" },
+    { "id": "e-decision-human", "source": "decision", "target": "human-gate", "label": "review", "type": "default" },
+    { "id": "e-decision-planning", "source": "decision", "target": "planning", "label": "fail", "type": "failure" },
+    { "id": "e-human-success", "source": "human-gate", "target": "success", "label": "approved", "type": "success" },
+    { "id": "e-human-stop", "source": "human-gate", "target": "stop", "label": "rejected", "type": "failure" }
+  ]
+}
