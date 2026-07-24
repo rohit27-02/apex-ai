@@ -9,7 +9,7 @@ import { STATUS_LABELS } from '@/constants/status';
 import type { NodeType, NodeStatus } from '@/types/workflow';
 import { useWorkflowStore } from '@/stores/workflow-store';
 import { useUIStore } from '@/stores/ui-store';
-import { Trash2, Pencil, Loader2, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { Trash2, Pencil, Loader2, CheckCircle2, XCircle, Clock, FileText } from 'lucide-react';
 
 interface BaseNodeData {
   label: string;
@@ -61,6 +61,7 @@ function BaseNode({ id, data, selected }: NodeProps) {
   const removeNode = useWorkflowStore((s) => s.removeNode);
   const updateNodeLabel = useWorkflowStore((s) => s.updateNodeLabel);
   const openInspector = useUIStore((s) => s.openInspector);
+  const openNodeDetail = useUIStore((s) => s.openNodeDetail);
 
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(nodeData.label);
@@ -115,8 +116,14 @@ function BaseNode({ id, data, selected }: NodeProps) {
     removeNode(id);
   };
 
+  const handleShowDetail = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    openNodeDetail(id);
+  };
+
   const configSummary = getConfigSummary(nodeType, nodeData.config);
   const nodeStatus = (nodeData.status as NodeStatus) ?? 'idle';
+  const hasRunData = nodeStatus !== 'idle' && nodeStatus !== 'skipped';
 
   return (
     <div
@@ -210,30 +217,16 @@ function BaseNode({ id, data, selected }: NodeProps) {
         </div>
       )}
 
-      {/* Run output / error */}
-      {nodeStatus !== 'idle' && nodeStatus !== 'skipped' && (
-        <div className="mt-2 border-t border-border pt-2">
-          {nodeData.output && (
-            <div
-              className="text-[10px] text-green-400/80 font-mono leading-relaxed text-left truncate"
-              title={nodeData.output as string}
-            >
-              {(nodeData.output as string).length > 60
-                ? (nodeData.output as string).slice(0, 60) + '...'
-                : nodeData.output as string}
-            </div>
-          )}
-          {nodeData.error && (
-            <div
-              className="text-[10px] text-red-400/80 font-mono leading-relaxed text-left truncate"
-              title={nodeData.error as string}
-            >
-              {(nodeData.error as string).length > 60
-                ? (nodeData.error as string).slice(0, 60) + '...'
-                : nodeData.error as string}
-            </div>
-          )}
-        </div>
+      {/* Detail expand button — shown when node has run data */}
+      {hasRunData && (
+        <button
+          onClick={handleShowDetail}
+          className="absolute bottom-1.5 right-1.5 z-10 h-6 w-6 flex items-center justify-center rounded-md bg-background/80 border border-border/50 text-muted-foreground hover:text-foreground hover:bg-background transition-all opacity-0 group-hover:opacity-100"
+          aria-label={`View details for ${nodeData.label}`}
+          title="View run details"
+        >
+          <FileText className="h-3 w-3" />
+        </button>
       )}
 
       {/* Handles */}

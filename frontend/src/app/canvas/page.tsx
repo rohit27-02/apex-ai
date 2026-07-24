@@ -7,6 +7,7 @@ import { NodeLibrary } from '@/components/canvas/node-library';
 import { WorkflowCanvas } from '@/components/canvas/workflow-canvas';
 import { InspectorPanel } from '@/components/inspector/inspector-panel';
 import { RunConsole } from '@/components/console/run-console';
+import { NodeDetailPopup } from '@/components/canvas/node-detail-popup';
 import { createRun, stopRun, checkBackend, approveRun, rejectRun } from '@/lib/api';
 import { startDemoRun, stopDemoRun, approveDemoGate, rejectDemoGate } from '@/lib/demo-runner';
 import type { RunScenario } from '@/lib/demo-runner';
@@ -169,6 +170,9 @@ function CanvasPageInner() {
           onRejectGate={handleReject}
         />
       </div>
+
+      {/* Node detail popup */}
+      <NodeDetailPopup />
     </div>
   );
 }
