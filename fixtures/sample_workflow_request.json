@@ -1,0 +1,24 @@
+{
+  "workflow": {
+    "entryNode": "criteria",
+    "nodes": [
+      { "id": "criteria", "type": "agent" },
+      { "id": "planning", "type": "agent" },
+      { "id": "execution", "type": "agent" },
+      { "id": "validation", "type": "validator" },
+      { "id": "human_gate", "type": "human_gate" },
+      { "id": "success", "type": "success" },
+      { "id": "stop", "type": "stop" }
+    ],
+    "edges": [
+      { "source": "criteria", "target": "planning", "on": "success" },
+      { "source": "planning", "target": "execution", "on": "success" },
+      { "source": "execution", "target": "validation", "on": "success" },
+      { "source": "validation", "target": "human_gate", "on": "success" },
+      { "source": "validation", "target": "planning", "on": "failure" },
+      { "source": "human_gate", "target": "success", "on": "success" }
+    ]
+  },
+  "objective": "Add pagination and status filtering to the /todos API while maintaining backward compatibility and adding tests.",
+  "maxAttempts": 3
+}

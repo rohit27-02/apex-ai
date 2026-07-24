@@ -1,0 +1,91 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "RunState",
+  "type": "object",
+  "required": [
+    "run_id",
+    "status",
+    "attempt",
+    "max_attempts",
+    "objective",
+    "started_at",
+    "updated_at",
+    "delivered",
+    "node_states",
+    "events",
+    "criteria"
+  ],
+  "properties": {
+    "run_id": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": [
+        "created",
+        "running",
+        "awaiting_approval",
+        "success",
+        "failed",
+        "stopped_safely",
+        "rolled_back"
+      ]
+    },
+    "attempt": { "type": "integer", "minimum": 0 },
+    "max_attempts": { "type": "integer", "minimum": 1 },
+    "objective": { "type": "string" },
+    "started_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "delivered": {
+      "type": "boolean",
+      "description": "true only when validation actually passed and the human gate approved; never set true on failure paths"
+    },
+    "node_states": {
+      "type": "object",
+      "description": "map of node id -> NodeState, drives node badges on the canvas",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["status"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["pending", "running", "success", "failed", "skipped"]
+          },
+          "started_at": { "type": ["string", "null"], "format": "date-time" },
+          "ended_at": { "type": ["string", "null"], "format": "date-time" },
+          "result_summary": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "events": {
+      "type": "array",
+      "description": "ordered timeline for the run console. type is a free string; common values: run_started, node_started, agent_invoked, command_executed, files_changed, validation_started, criterion_passed, criterion_failed, retry_triggered, rollback_started, rollback_completed, post_rollback_verification_passed, run_stopped_safely, run_succeeded",
+      "items": {
+        "type": "object",
+        "required": ["timestamp", "node_id", "type"],
+        "properties": {
+          "timestamp": { "type": "string", "format": "date-time" },
+          "node_id": { "type": "string" },
+          "type": { "type": "string" },
+          "payload": { "type": "object" }
+        }
+      }
+    },
+    "criteria": {
+      "type": "array",
+      "description": "drives the criteria review/confirmation UI",
+      "items": {
+        "type": "object",
+        "required": ["id", "description", "command", "expect_exit_code", "status"],
+        "properties": {
+          "id": { "type": "string" },
+          "description": { "type": "string" },
+          "command": { "type": "string" },
+          "expect_exit_code": { "type": "integer" },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "passed", "failed"]
+          }
+        }
+      }
+    }
+  }
+}

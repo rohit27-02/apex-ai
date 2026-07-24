@@ -1,0 +1,42 @@
+{
+  "run_id": "__RUN_ID__",
+  "status": "awaiting_approval",
+  "attempt": 2,
+  "max_attempts": 3,
+  "objective": "Add pagination and status filtering to the /todos API while maintaining backward compatibility and adding tests.",
+  "started_at": "2026-07-24T14:00:00Z",
+  "updated_at": "2026-07-24T14:12:30Z",
+  "delivered": false,
+  "node_states": {
+    "criteria": { "status": "success", "started_at": "2026-07-24T14:00:00Z", "ended_at": "2026-07-24T14:00:20Z", "result_summary": "3 success criteria defined" },
+    "planning": { "status": "success", "started_at": "2026-07-24T14:11:00Z", "ended_at": "2026-07-24T14:11:20Z", "result_summary": "Revised plan incorporating pytest failure feedback" },
+    "execution": { "status": "success", "started_at": "2026-07-24T14:11:20Z", "ended_at": "2026-07-24T14:12:00Z", "result_summary": "Edited routes/todos.py, tests/test_todos.py" },
+    "validation": { "status": "success", "started_at": "2026-07-24T14:12:00Z", "ended_at": "2026-07-24T14:12:30Z", "result_summary": "All criteria passed" },
+    "human_gate": { "status": "pending", "started_at": null, "ended_at": null, "result_summary": null },
+    "success": { "status": "pending", "started_at": null, "ended_at": null, "result_summary": null },
+    "stop": { "status": "skipped", "started_at": null, "ended_at": null, "result_summary": null }
+  },
+  "events": [
+    { "timestamp": "2026-07-24T14:00:00Z", "node_id": "criteria", "type": "run_started", "payload": {} },
+    { "timestamp": "2026-07-24T14:00:20Z", "node_id": "criteria", "type": "node_finished", "payload": { "attempt": 1 } },
+    { "timestamp": "2026-07-24T14:00:20Z", "node_id": "planning", "type": "node_started", "payload": { "attempt": 1 } },
+    { "timestamp": "2026-07-24T14:00:45Z", "node_id": "planning", "type": "node_finished", "payload": { "attempt": 1 } },
+    { "timestamp": "2026-07-24T14:00:45Z", "node_id": "execution", "type": "agent_invoked", "payload": { "attempt": 1 } },
+    { "timestamp": "2026-07-24T14:01:30Z", "node_id": "execution", "type": "files_changed", "payload": { "files": ["routes/todos.py"] } },
+    { "timestamp": "2026-07-24T14:01:35Z", "node_id": "validation", "type": "validation_started", "payload": { "attempt": 1 } },
+    { "timestamp": "2026-07-24T14:01:50Z", "node_id": "validation", "type": "criterion_failed", "payload": { "criterion": "tests", "exit_code": 1, "stderr": "test_pagination_default_page_size FAILED: expected 200, got 500" } },
+    { "timestamp": "2026-07-24T14:01:50Z", "node_id": "validation", "type": "retry_triggered", "payload": { "attempt": 1, "reason": "pytest exit 1" } },
+    { "timestamp": "2026-07-24T14:11:00Z", "node_id": "planning", "type": "node_started", "payload": { "attempt": 2, "feedback": "test_pagination_default_page_size FAILED: expected 200, got 500" } },
+    { "timestamp": "2026-07-24T14:11:20Z", "node_id": "planning", "type": "node_finished", "payload": { "attempt": 2 } },
+    { "timestamp": "2026-07-24T14:11:20Z", "node_id": "execution", "type": "agent_invoked", "payload": { "attempt": 2 } },
+    { "timestamp": "2026-07-24T14:12:00Z", "node_id": "execution", "type": "files_changed", "payload": { "files": ["routes/todos.py", "tests/test_todos.py"] } },
+    { "timestamp": "2026-07-24T14:12:00Z", "node_id": "validation", "type": "validation_started", "payload": { "attempt": 2 } },
+    { "timestamp": "2026-07-24T14:12:30Z", "node_id": "validation", "type": "criterion_passed", "payload": { "criterion": "tests", "exit_code": 0 } },
+    { "timestamp": "2026-07-24T14:12:30Z", "node_id": "human_gate", "type": "node_started", "payload": { "attempt": 2 } }
+  ],
+  "criteria": [
+    { "id": "tests", "description": "All tests pass", "command": "pytest -q", "expect_exit_code": 0, "status": "passed" },
+    { "id": "lint", "description": "Lint passes", "command": "ruff check .", "expect_exit_code": 0, "status": "passed" },
+    { "id": "backward_compat", "description": "Existing /todos response shape unchanged when no query params given", "command": "pytest -q tests/test_todos_compat.py", "expect_exit_code": 0, "status": "passed" }
+  ]
+}
