@@ -156,6 +156,10 @@ class NodeState(BaseModel):
     started_at: datetime | None = None
     ended_at: datetime | None = None
     result_summary: str | None = None
+    # Live per-node log lines — the agent's thinking + tool usage streamed from
+    # the runner, or the validator's per-criterion results. Capped (see
+    # append_node_log) so the run payload stays small.
+    logs: list[str] = Field(default_factory=list)
 
 
 class Event(BaseModel):
@@ -225,3 +229,23 @@ class RunState(BaseModel):
                 payload=payload or {},
             ))
             self.updated_at = now
+
+    def append_log(self, node_id: str, line: str, cap: int = 200) -> None:
+        """Append a live log line to a node, capped to the most recent `cap`
+        lines. Thread-safe against dump_json (guards the logs list mutation)."""
+        with self._lock:
+            node = self.node_states.get(node_id)
+            if node is None:
+                node = NodeState()
+                self.node_states[node_id] = node
+            node.logs.append(line)
+            if len(node.logs) > cap:
+                del node.logs[: len(node.logs) - cap]
+            self.updated_at = _now()
+
+    def clear_logs(self, node_id: str) -> None:
+        """Reset a node's logs (called when a node re-runs on a new attempt)."""
+        with self._lock:
+            node = self.node_states.get(node_id)
+            if node is not None:
+                node.logs = []

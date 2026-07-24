@@ -88,8 +88,16 @@ def handle_agent(node: WorkflowNode, ctx: HandlerContext) -> HandlerResult:
     prompt = _build_prompt(ctx, role, template)
 
     run.emit(node.id, EventType.AGENT_INVOKED, {"role": role, "attempt": run.attempt})
+    # Fresh logs for this attempt; stream the agent's thinking + tool use live.
+    run.clear_logs(node.id)
+    run.append_log(node.id, f"$ agent[{role}] attempt {run.attempt}")
     start = time.monotonic()
-    result = ctx.runner.run(prompt, cwd=ctx.repo_path, tools=node.config.get("tools"))
+    result = ctx.runner.run(
+        prompt,
+        cwd=ctx.repo_path,
+        tools=node.config.get("tools"),
+        on_log=lambda line: run.append_log(node.id, line),
+    )
     elapsed = round(time.monotonic() - start, 3)
 
     run.cost.model_calls += result.model_calls

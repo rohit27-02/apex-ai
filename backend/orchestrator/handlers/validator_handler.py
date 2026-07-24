@@ -46,12 +46,16 @@ def handle_validator(node: WorkflowNode, ctx: HandlerContext) -> HandlerResult:
     run = ctx.run
     mark_node(run, node.id, NodeStatus.running)
     run.emit(node.id, EventType.VALIDATION_STARTED, {"attempt": run.attempt})
+    # Fresh logs for this attempt; record each deterministic check + evidence.
+    run.clear_logs(node.id)
+    run.append_log(node.id, f"$ validate (attempt {run.attempt}) — verdict = all(exit_code == expected)")
 
     first_failure: dict | None = None
     passed = 0
 
     for crit in run.criteria:
         start = time.monotonic()
+        run.append_log(node.id, f"$ {crit.command}")
         exit_code, evidence = _run_command(crit.command, ctx.repo_path)
         crit.duration_s = round(time.monotonic() - start, 3)
         crit.exit_code = exit_code
@@ -60,15 +64,20 @@ def handle_validator(node: WorkflowNode, ctx: HandlerContext) -> HandlerResult:
         if exit_code == crit.expect_exit_code:
             crit.status = CriterionStatus.passed
             passed += 1
+            run.append_log(node.id, f"  ✓ {crit.id} passed (exit {exit_code})")
             run.emit(node.id, EventType.CRITERION_PASSED,
                      {"criterion": crit.id, "exit_code": exit_code})
         else:
             crit.status = CriterionStatus.failed
+            run.append_log(node.id,
+                           f"  ✗ {crit.id} FAILED (exit {exit_code}, expected {crit.expect_exit_code})")
+            for ev_line in evidence.strip().splitlines()[-20:]:
+                run.append_log(node.id, f"    {ev_line}")
             run.emit(node.id, EventType.CRITERION_FAILED, {
                 "criterion": crit.id,
                 "exit_code": exit_code,
                 "expected": crit.expect_exit_code,
-                "evidence": evidence[-500:],
+                "evidence": evidence[-1200:],
             })
             if first_failure is None:
                 first_failure = {

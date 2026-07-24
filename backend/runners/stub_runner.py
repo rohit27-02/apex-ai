@@ -15,6 +15,16 @@ import time
 from pathlib import Path
 
 from backend.contracts.models import RunnerResult
+from backend.runners.base import LogSink
+
+# Fake "thinking" + tool-use lines so streaming is demonstrable without a key.
+_STUB_LOG_LINES = [
+    "Thinking: reading the repository to understand the objective…",
+    "Tool: Read(app/main.py)",
+    "Thinking: the change is localized; I'll apply a small patch.",
+    "Tool: Edit(app/main.py)",
+    "Applied canned patch to app/main.py",
+]
 
 
 class StubRunner:
@@ -28,9 +38,14 @@ class StubRunner:
         prompt: str,
         cwd: str,
         tools: list[str] | None = None,
+        on_log: LogSink | None = None,
     ) -> RunnerResult:
         run_dir = Path(cwd) / ".run_output"
         run_dir.mkdir(parents=True, exist_ok=True)
+
+        if on_log:
+            for line in _STUB_LOG_LINES:
+                on_log(line)
 
         transcript_path = run_dir / "transcript.jsonl"
         self._write_transcript(transcript_path, prompt)

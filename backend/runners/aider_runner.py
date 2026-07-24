@@ -19,12 +19,20 @@ from __future__ import annotations
 
 import json
 import os
+import queue
 import subprocess
+import threading
 import time
 from pathlib import Path
 
 from backend.contracts.models import RunnerResult
+from backend.runners.base import LogSink
 from backend.runners.key_rotation import get_api_key, mark_exhausted, reset_keys
+
+
+def _clean_line(line: str) -> str:
+    """Strip control chars (ANSI etc.) so streamed log lines are clean text."""
+    return "".join(ch for ch in line if ord(ch) >= 0x20 or ch in "\t")
 
 # Map model prefix -> env var name
 PROVIDER_ENV_MAP = {
@@ -62,17 +70,18 @@ class AiderRunner:
         prompt: str,
         cwd: str,
         tools: list[str] | None = None,
+        on_log: LogSink | None = None,
     ) -> RunnerResult:
         # BYOK path: use the provided key directly, no rotation.
         if self._api_key:
-            return self._run_with_key(prompt, cwd, self._api_key)
+            return self._run_with_key(prompt, cwd, self._api_key, on_log)
 
         reset_keys()
         last_result = None
 
         for _ in range(self._max_retries):
             api_key = get_api_key()
-            result = self._run_with_key(prompt, cwd, api_key)
+            result = self._run_with_key(prompt, cwd, api_key, on_log)
 
             if result.status == "timeout":
                 return result
@@ -80,6 +89,8 @@ class AiderRunner:
             if self._is_rate_limited(result):
                 mark_exhausted(api_key)
                 last_result = result
+                if on_log:
+                    on_log("[rate limited — rotating to next key]")
                 result = RunnerResult(
                     transcript_path=result.transcript_path,
                     files_changed=result.files_changed,
@@ -102,6 +113,7 @@ class AiderRunner:
         prompt: str,
         cwd: str,
         api_key: str,
+        on_log: LogSink | None = None,
     ) -> RunnerResult:
         run_dir = Path(cwd) / ".run_output"
         run_dir.mkdir(parents=True, exist_ok=True)
@@ -116,40 +128,86 @@ class AiderRunner:
             env[env_var] = api_key
 
         try:
-            result = subprocess.run(
+            proc = subprocess.Popen(
                 cmd,
                 cwd=cwd,
-                capture_output=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,   # merge so ordering is preserved
                 text=True,
-                timeout=self._timeout,
+                bufsize=1,                  # line-buffered
                 env=env,
             )
-            exit_code = result.returncode
-            stdout = result.stdout
-            stderr = result.stderr
-
-            events = self._parse_output(stdout, stderr)
-            self._write_transcript(transcript_path, events, prompt, exit_code)
-
-            files_changed = self._detect_changed_files(cwd)
-            model_calls = self._count_model_calls(events)
-            status = "success" if exit_code == 0 else "failed"
-
+        except FileNotFoundError as exc:
+            self._write_timeout_transcript(transcript_path, prompt)
+            if on_log:
+                on_log(f"[runner error: {exc}]")
             return RunnerResult(
                 transcript_path=str(transcript_path),
-                files_changed=files_changed,
-                status=status,
-                model_calls=model_calls,
+                files_changed=[],
+                status="failed",
+                model_calls=0,
             )
 
-        except subprocess.TimeoutExpired:
+        # Read stdout on a background thread so we can enforce a total timeout
+        # even if the agent hangs with no output.
+        line_q: queue.Queue[str | None] = queue.Queue()
+
+        def _reader() -> None:
+            try:
+                assert proc.stdout is not None
+                for raw in proc.stdout:
+                    line_q.put(raw.rstrip("\n"))
+            finally:
+                line_q.put(None)  # EOF sentinel
+
+        threading.Thread(target=_reader, daemon=True).start()
+
+        lines: list[str] = []
+        start = time.monotonic()
+        timed_out = False
+        while True:
+            if time.monotonic() - start > self._timeout:
+                proc.kill()
+                timed_out = True
+                break
+            try:
+                item = line_q.get(timeout=1.0)
+            except queue.Empty:
+                continue
+            if item is None:  # EOF
+                break
+            clean = _clean_line(item)
+            lines.append(clean)
+            if on_log and clean.strip():
+                on_log(clean)
+
+        proc.wait()
+
+        if timed_out:
             self._write_timeout_transcript(transcript_path, prompt)
+            if on_log:
+                on_log(f"[timed out after {self._timeout}s]")
             return RunnerResult(
                 transcript_path=str(transcript_path),
                 files_changed=[],
                 status="timeout",
                 model_calls=0,
             )
+
+        exit_code = proc.returncode or 0
+        events = self._parse_output("\n".join(lines), "")
+        self._write_transcript(transcript_path, events, prompt, exit_code)
+
+        files_changed = self._detect_changed_files(cwd)
+        model_calls = self._count_model_calls(events)
+        status = "success" if exit_code == 0 else "failed"
+
+        return RunnerResult(
+            transcript_path=str(transcript_path),
+            files_changed=files_changed,
+            status=status,
+            model_calls=model_calls,
+        )
 
     def _get_env_var(self) -> str | None:
         """Get the env var name for the current model's provider."""
