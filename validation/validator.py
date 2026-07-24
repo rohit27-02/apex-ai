@@ -88,6 +88,7 @@ def run_criterion(criterion: dict[str, Any], repo_path: str | Path) -> dict[str,
             capture_output=True,
             text=True,
             timeout=timeout,
+            check=False,
         )
     except subprocess.TimeoutExpired as exc:
         result["duration_s"] = round(time.monotonic() - start, 3)
