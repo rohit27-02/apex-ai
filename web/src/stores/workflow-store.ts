@@ -36,7 +36,16 @@ interface WorkflowState {
 
 const NODE_DEFAULTS: Record<NodeType, { name: string; config: Record<string, unknown> }> = {
   input: { name: 'New Input', config: { objective: '', constraints: [] } },
-  agent: { name: 'New Agent', config: { model: '', instructions: '', tools: [] } },
+  agent: {
+    name: 'New Agent',
+    config: {
+      model: 'groq/llama-3.3-70b-versatile',
+      api_key: '',
+      provider: 'groq',
+      instructions: '',
+      tools: [],
+    },
+  },
   command: { name: 'New Command', config: { command: '', timeout: 60000 } },
   validator: { name: 'New Validator', config: { criteria: [], retryLimit: 3 } },
   decision: { name: 'New Decision', config: { condition: '' } },

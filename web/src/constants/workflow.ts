@@ -19,7 +19,9 @@ export const DEFAULT_WORKFLOW: Workflow = {
       type: 'agent',
       name: 'Success Criteria Agent',
       config: {
-        model: 'claude-sonnet-4-20250514',
+        model: 'groq/llama-3.3-70b-versatile',
+        api_key: '',
+        provider: 'groq',
         instructions: 'Convert the engineering objective into measurable completion criteria.',
         tools: ['read_file', 'list_files'],
       },
@@ -30,7 +32,9 @@ export const DEFAULT_WORKFLOW: Workflow = {
       type: 'agent',
       name: 'Planning Agent',
       config: {
-        model: 'claude-sonnet-4-20250514',
+        model: 'groq/llama-3.3-70b-versatile',
+        api_key: '',
+        provider: 'groq',
         instructions: 'Create a concrete implementation plan naming real files and modules.',
         tools: ['read_file', 'list_files', 'search'],
       },
@@ -41,7 +45,9 @@ export const DEFAULT_WORKFLOW: Workflow = {
       type: 'agent',
       name: 'Execution Agent',
       config: {
-        model: 'claude-sonnet-4-20250514',
+        model: 'groq/llama-3.3-70b-versatile',
+        api_key: '',
+        provider: 'groq',
         instructions: 'Implement the changes according to the plan.',
         tools: ['read_file', 'write_file', 'edit_file', 'run_command', 'search'],
       },
