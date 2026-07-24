@@ -1,0 +1,42 @@
+# Environment variables (contains API keys) — NEVER commit
+.env
+.env.*
+!*.example
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# Virtualenvs
+venv/
+.aider-venv/
+
+# Node / Next.js (frontend)
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# Run output / generated receipts
+.run_output/
+runs/
+
+# Demo sandbox — its own local git repo, regenerated per machine
+target-repo/
+
+# IDE / local tooling
+.vscode/
+.idea/
+*.swp
+*.swo
+.claude/settings.local.json
+
+# OS
+.DS_Store
+Thumbs.db

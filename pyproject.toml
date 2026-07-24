@@ -1,0 +1,22 @@
+[project]
+name = "apex-ai"
+version = "0.1.0"
+description = "AI Coding Loop — a control plane for long-running AI coding work (Track B)"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+# Stable, meaningful gate: pyflakes, pycodestyle, import order, bugbear.
+# Deliberately NOT enabling blanket-except/subprocess-check rules: the
+# validator/rollback wrappers intentionally catch everything and inspect
+# exit codes themselves — any failure must become a red verdict, not a crash.
+select = ["E", "F", "W", "I", "B"]
+ignore = [
+    "E501",  # long lines in prompts/docstrings are fine
+]
