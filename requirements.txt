@@ -1,0 +1,14 @@
+# Core
+pydantic>=2.0
+fastapi>=0.100.0
+uvicorn>=0.20.0
+
+# Agent runner
+aider-chat>=0.50.0
+
+# Testing
+pytest>=7.0
+
+# Utilities
+python-dotenv>=1.0
+requests>=2.28.0
