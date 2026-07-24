@@ -1,12 +1,14 @@
 """FastAPI todo service.
 
-BASE VERSION: ``GET /todos`` returns the full list as a JSON array and
-ignores any query parameters. The objective (see OBJECTIVE.md) is to add
-pagination and status filtering while keeping this array response shape
-backward compatible.
+SOLUTION VERSION: ``GET /todos`` supports pagination and status filtering
+while keeping the response body a JSON array (backward compatible). Paging
+parameters are validated by FastAPI ``Query`` constraints, so invalid input
+yields HTTP 422 rather than 200 or 500.
 """
 
-from fastapi import FastAPI, HTTPException, Response
+from typing import Literal
+
+from fastapi import FastAPI, HTTPException, Query, Response
 
 from app import store
 from app.schemas import Todo, TodoIn
@@ -20,10 +22,22 @@ def health() -> dict[str, str]:
 
 
 @app.get("/todos", response_model=list[Todo])
-def list_todos(response: Response) -> list[Todo]:
+def list_todos(
+    response: Response,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    status: Literal["active", "done"] | None = Query(None),
+) -> list[Todo]:
     items = store.list_all()
+    if status == "active":
+        items = [t for t in items if not t.done]
+    elif status == "done":
+        items = [t for t in items if t.done]
+
     response.headers["X-Total-Count"] = str(len(items))
-    return items
+
+    start = (page - 1) * page_size
+    return items[start : start + page_size]
 
 
 @app.post("/todos", response_model=Todo, status_code=201)
