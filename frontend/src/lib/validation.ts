@@ -29,6 +29,7 @@ export const NodeRunStateSchema = z.object({
   status: z.enum(['idle', 'running', 'success', 'failure', 'skipped', 'waiting']),
   output: z.string().optional(),
   error: z.string().optional(),
+  logs: z.array(z.string()).optional(),
   startedAt: z.string().optional(),
   completedAt: z.string().optional(),
 });

@@ -49,6 +49,7 @@ function CanvasPageInner() {
     const nodeStates = run.nodeStates as Record<string, NodeRunState>;
     const updatedNodes = nodes.map((n) => {
       const nodeState = nodeStates[n.id];
+      const isValidator = n.data?.nodeType === 'validator' || n.type === 'validator';
       return {
         ...n,
         data: {
@@ -56,6 +57,9 @@ function CanvasPageInner() {
           status: (nodeState?.status ?? 'idle') as NodeStatus,
           output: nodeState?.output ?? null,
           error: nodeState?.error ?? null,
+          logs: nodeState?.logs ?? null,
+          // Attach criteria (with evidence) to the validation node for inspection.
+          criteria: isValidator ? run.criteria : null,
         },
       };
     });

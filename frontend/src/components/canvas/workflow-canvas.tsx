@@ -6,7 +6,6 @@ import {
   Background,
   BackgroundVariant,
   Controls,
-  MiniMap,
   type NodeTypes,
   type EdgeTypes,
   type ReactFlowInstance,
@@ -45,6 +44,19 @@ const edgeTypes: EdgeTypes = {
   failure: LoopEdge,
 };
 
+type Pt = { x: number; y: number };
+
+/** Shortest distance from point p to the segment a–b (flow coordinates). */
+function distanceToSegment(p: Pt, a: Pt, b: Pt): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) return Math.hypot(p.x - a.x, p.y - a.y);
+  let t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+}
+
 interface WorkflowCanvasProps {
   run?: { nodeStates?: Record<string, { status: string }> } | null;
   waitingGateNodeId?: string | null;
@@ -59,6 +71,7 @@ export function WorkflowCanvas({ run, waitingGateNodeId }: WorkflowCanvasProps) 
   const onEdgesChange = useWorkflowStore((s) => s.onEdgesChange);
   const onConnect = useWorkflowStore((s) => s.onConnect);
   const addNode = useWorkflowStore((s) => s.addNode);
+  const insertNodeOnEdge = useWorkflowStore((s) => s.insertNodeOnEdge);
   const removeNode = useWorkflowStore((s) => s.removeNode);
   const removeEdge = useWorkflowStore((s) => s.removeEdge);
   const selectNode = useWorkflowStore((s) => s.selectNode);
@@ -103,15 +116,37 @@ export function WorkflowCanvas({ run, waitingGateNodeId }: WorkflowCanvasProps) 
       const type = event.dataTransfer.getData('application/reactflow-type') as NodeType;
       if (!type || !reactFlowInstance.current || !reactFlowWrapper.current) return;
 
+      const instance = reactFlowInstance.current;
       const bounds = reactFlowWrapper.current.getBoundingClientRect();
-      const position = reactFlowInstance.current.screenToFlowPosition({
+      const position = instance.screenToFlowPosition({
         x: event.clientX - bounds.left,
         y: event.clientY - bounds.top,
       });
 
-      addNode(type, position);
+      // If dropped onto an existing edge, insert the node into it (split the
+      // edge) instead of leaving a stale bypass edge.
+      const rfNodes = instance.getNodes();
+      const byId = new Map(rfNodes.map((n) => [n.id, n]));
+      const hit = edges.find((e) => {
+        const s = byId.get(e.source);
+        const t = byId.get(e.target);
+        if (!s || !t) return false;
+        const sw = s.measured?.width ?? 240;
+        const sh = s.measured?.height ?? 90;
+        const th = t.measured?.height ?? 90;
+        // Right-handle of source -> left-handle of target (the horizontal flow).
+        const p1 = { x: s.position.x + sw, y: s.position.y + sh / 2 };
+        const p2 = { x: t.position.x, y: t.position.y + th / 2 };
+        return distanceToSegment(position, p1, p2) < 36;
+      });
+
+      if (hit) {
+        insertNodeOnEdge(type, position, hit.id);
+      } else {
+        addNode(type, position);
+      }
     },
-    [addNode]
+    [addNode, insertNodeOnEdge, edges]
   );
 
   // Delete selected elements on Backspace/Delete
@@ -157,9 +192,6 @@ export function WorkflowCanvas({ run, waitingGateNodeId }: WorkflowCanvasProps) 
         <Controls
           showInteractive={false}
           aria-label="Canvas zoom controls"
-        />
-        <MiniMap
-          aria-label="Canvas minimap"
         />
       </ReactFlow>
     </div>

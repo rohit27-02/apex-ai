@@ -2,25 +2,11 @@
 
 import React from 'react';
 import { useWorkflowStore } from '@/stores/workflow-store';
+import { useSettingsStore, PROVIDER_MODEL_OPTIONS, PROVIDER_LABELS } from '@/stores/settings-store';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-
-const AVAILABLE_MODELS = [
-  'claude-sonnet-4-20250514',
-  'claude-3-5-sonnet-20241022',
-  'gpt-4o',
-  'gpt-4o-mini',
-  'gemini-2.0-flash',
-];
 
 const AVAILABLE_TOOLS = [
   'read_file',
@@ -36,29 +22,41 @@ const AVAILABLE_TOOLS = [
 export function AgentFields({ nodeId }: { nodeId: string }) {
   const node = useWorkflowStore((s) => s.nodes.find((n) => n.id === nodeId));
   const updateConfig = useWorkflowStore((s) => s.updateNodeConfig);
+  const provider = useSettingsStore((s) => s.provider);
 
   if (!node) return null;
 
   const config = node.data.config as Record<string, unknown>;
   const tools = (config.tools as string[]) ?? [];
+  const models = PROVIDER_MODEL_OPTIONS[provider];
+  const currentModel = (config.model as string) ?? '';
+  // Keep an out-of-provider value visible so a previously-set model isn't lost.
+  const modelOptions = currentModel && !models.includes(currentModel)
+    ? [currentModel, ...models]
+    : models;
 
   return (
     <div className="space-y-5">
       <div className="space-y-2">
-        <Label>Model</Label>
-        <Select
-          value={(config.model as string) ?? ''}
-          onValueChange={(value: string) => updateConfig(nodeId, { ...config, model: value })}
+        <Label htmlFor={`${nodeId}-model`}>Model</Label>
+        <select
+          id={`${nodeId}-model`}
+          value={currentModel}
+          onChange={(e) => updateConfig(nodeId, { ...config, model: e.target.value })}
+          className="w-full h-9 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
         >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Select model..." />
-          </SelectTrigger>
-          <SelectContent>
-            {AVAILABLE_MODELS.map((m) => (
-              <SelectItem key={m} value={m}>{m}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <option value="" disabled>
+            Select model…
+          </option>
+          {modelOptions.map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
+        </select>
+        <p className="text-[10px] text-muted-foreground/70">
+          Models for {PROVIDER_LABELS[provider]} — change the provider in ⚙️ Settings.
+        </p>
       </div>
 
       <div className="space-y-2">

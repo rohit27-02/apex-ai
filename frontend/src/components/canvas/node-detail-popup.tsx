@@ -1,34 +1,14 @@
 'use client';
 
-import React from 'react';
-import { X, CheckCircle2, XCircle, Clock, Loader2, AlertTriangle, RotateCcw, Bot, Terminal, FileDiff, ShieldCheck, UserCheck } from 'lucide-react';
+import React, { useEffect, useRef } from 'react';
+import { X, CheckCircle2, XCircle, Clock, Loader2 } from 'lucide-react';
 import { useUIStore } from '@/stores/ui-store';
 import { useWorkflowStore } from '@/stores/workflow-store';
 import { STATUS_LABELS } from '@/constants/status';
 import { NODE_TYPE_CONFIG } from '@/constants/node-types';
 import { cn } from '@/lib/utils';
 import type { NodeStatus } from '@/types/workflow';
-import type { RunEvent, RunEventKind } from '@/types/run';
-
-const EVENT_ICONS: Record<RunEventKind, React.ComponentType<{ className?: string }>> = {
-  agent_message: Bot,
-  command: Terminal,
-  file_change: FileDiff,
-  validation: ShieldCheck,
-  error: AlertTriangle,
-  retry: RotateCcw,
-  human_feedback: UserCheck,
-};
-
-const EVENT_COLORS: Record<RunEventKind, string> = {
-  agent_message: 'text-primary',
-  command: 'text-blue-400',
-  file_change: 'text-emerald-400',
-  validation: 'text-cyan-400',
-  error: 'text-destructive',
-  retry: 'text-amber-400',
-  human_feedback: 'text-purple-400',
-};
+import type { CriteriaItem } from '@/types/run';
 
 const STATUS_ICONS: Record<string, React.ReactNode> = {
   idle: null,
@@ -50,22 +30,31 @@ export function NodeDetailPopup() {
   const nodeDetailNodeId = useUIStore((s) => s.nodeDetailNodeId);
   const closeNodeDetail = useUIStore((s) => s.closeNodeDetail);
   const nodes = useWorkflowStore((s) => s.nodes);
-  const run = useWorkflowStore((s) => s.nodes); // We get run from the page props
+  const logsEndRef = useRef<HTMLDivElement>(null);
 
   const node = nodes.find((n) => n.id === nodeDetailNodeId);
 
-  // Get run data from the store's workflow or we need to pass it as prop
-  // For now, we'll use the node data which already has status/output/error synced
-  if (!node || !nodeDetailNodeId) return null;
+  const nodeData = node?.data as
+    | {
+        label: string;
+        nodeType: string;
+        status?: string;
+        output?: string;
+        error?: string;
+        logs?: string[] | null;
+        criteria?: CriteriaItem[] | null;
+        config: Record<string, unknown>;
+      }
+    | undefined;
 
-  const nodeData = node.data as {
-    label: string;
-    nodeType: string;
-    status?: string;
-    output?: string;
-    error?: string;
-    config: Record<string, unknown>;
-  };
+  const logs = nodeData?.logs ?? null;
+
+  // Auto-scroll the logs to the newest line as they stream in.
+  useEffect(() => {
+    logsEndRef.current?.scrollIntoView({ block: 'end' });
+  }, [logs?.length]);
+
+  if (!node || !nodeDetailNodeId || !nodeData) return null;
 
   const nodeStatus = (nodeData.status as NodeStatus) ?? 'idle';
   const nodeConfig = NODE_TYPE_CONFIG[nodeData.nodeType as keyof typeof NODE_TYPE_CONFIG];
@@ -139,6 +128,66 @@ export function NodeDetailPopup() {
                 <p className="text-xs text-red-400/90 font-mono leading-relaxed break-words">
                   {nodeData.error}
                 </p>
+              </div>
+            </div>
+          )}
+
+          {/* Criteria section (validation node) — shows WHY it passed/failed */}
+          {nodeData.criteria && nodeData.criteria.length > 0 && (
+            <div>
+              <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                Criteria
+              </h3>
+              <div className="space-y-2">
+                {nodeData.criteria.map((c) => (
+                  <div
+                    key={c.id}
+                    className={cn(
+                      'rounded-lg border px-3 py-2',
+                      c.status === 'passed' && 'bg-green-500/5 border-green-500/20',
+                      c.status === 'failed' && 'bg-red-500/5 border-red-500/20',
+                      c.status === 'pending' && 'bg-muted/40 border-border'
+                    )}
+                  >
+                    <div className="flex items-center gap-2 text-xs">
+                      <span
+                        className={cn(
+                          'font-semibold',
+                          c.status === 'passed' && 'text-green-400',
+                          c.status === 'failed' && 'text-red-400',
+                          c.status === 'pending' && 'text-muted-foreground'
+                        )}
+                      >
+                        {c.status === 'passed' ? '✓' : c.status === 'failed' ? '✗' : '○'} {c.id}
+                      </span>
+                      <span className="text-muted-foreground">{c.label}</span>
+                    </div>
+                    {c.status === 'failed' && c.evidence && (
+                      <pre className="mt-1.5 text-[10px] text-red-400/80 font-mono whitespace-pre-wrap break-words max-h-40 overflow-y-auto">
+                        {c.evidence}
+                      </pre>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Logs section — streamed LLM thinking + tool usage */}
+          {logs && logs.length > 0 && (
+            <div>
+              <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                Logs {nodeStatus === 'running' && <span className="text-[#E20074] normal-case">· streaming…</span>}
+              </h3>
+              <div className="bg-black/40 border border-border rounded-lg p-3 max-h-64 overflow-y-auto">
+                <div className="font-mono text-[10.5px] leading-relaxed text-foreground/80 whitespace-pre-wrap break-words">
+                  {logs.map((line, i) => (
+                    <div key={i} className={cn(line.startsWith('  ✗') && 'text-red-400', line.startsWith('  ✓') && 'text-green-400', line.startsWith('$') && 'text-cyan-400/80')}>
+                      {line}
+                    </div>
+                  ))}
+                  <div ref={logsEndRef} />
+                </div>
               </div>
             </div>
           )}

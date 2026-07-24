@@ -30,6 +30,7 @@ export interface NodeRunState {
   status: 'idle' | 'running' | 'success' | 'failure' | 'skipped' | 'waiting';
   output?: string;
   error?: string;
+  logs?: string[];
   startedAt?: string;
   completedAt?: string;
 }

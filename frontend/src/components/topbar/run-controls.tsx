@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Play, Square, Pause, X } from 'lucide-react';
 import type { RunStatus as RunStatusType } from '@/types/run';
 import type { RunScenario } from '@/lib/demo-runner';
+import { useWorkflowStore } from '@/stores/workflow-store';
 import { cn } from '@/lib/utils';
 
 interface RunControlsProps {
@@ -35,8 +36,19 @@ export function RunControls({ status, onStart, onStop, backendAvailable }: RunCo
   }, [showDialog]);
 
   const handleRunClick = () => {
+    // If the Input/objective node already has an objective, run straight away
+    // instead of popping the dialog to ask for it again.
+    const nodes = useWorkflowStore.getState().nodes;
+    const inputNode = nodes.find((n) => n.data?.nodeType === 'input' || n.type === 'input');
+    const nodeObjective = ((inputNode?.data?.config as { objective?: string })?.objective ?? '').trim();
+
+    if (nodeObjective && backendAvailable !== false) {
+      onStart?.(nodeObjective);
+      return;
+    }
+
     setShowDialog(true);
-    setObjective('');
+    setObjective(nodeObjective);
     setScenario('success');
   };
 

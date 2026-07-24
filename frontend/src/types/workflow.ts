@@ -26,6 +26,9 @@ export interface WorkflowEdge {
   targetHandle?: string;
   label?: string;
   type?: 'success' | 'failure' | 'default';
+  // Explicit branch outcome (overrides `type`). Set on edges leaving a
+  // human_gate / decision node: 'success' = approved/pass, 'failure' = rejected/fail.
+  outcome?: 'success' | 'failure';
 }
 
 export interface Workflow {

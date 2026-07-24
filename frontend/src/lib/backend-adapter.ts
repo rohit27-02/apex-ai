@@ -15,6 +15,7 @@ export interface BackendNodeState {
   started_at?: string | null;
   ended_at?: string | null;
   result_summary?: string | null;
+  logs?: string[];
 }
 
 export interface BackendEvent {
@@ -185,6 +186,7 @@ export function backendRunToRun(b: BackendRunState): Run {
       status: waiting ? 'waiting' : NODE_STATUS_MAP[ns.status] ?? 'idle',
       output: ns.result_summary ?? undefined,
       error: ns.status === 'failed' ? ns.result_summary ?? 'failed' : undefined,
+      logs: ns.logs && ns.logs.length ? ns.logs : undefined,
       startedAt: ns.started_at ?? undefined,
       completedAt: ns.ended_at ?? undefined,
     };

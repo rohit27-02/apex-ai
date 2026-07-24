@@ -27,11 +27,12 @@ export function toBackendWorkflow(workflow: Workflow): BackendWorkflow {
     config: Object.keys(n.config).length > 0 ? n.config : undefined,
   }));
 
-  // Convert edges
+  // Convert edges — an explicit `outcome` (set on gate/decision branches)
+  // wins over the visual edge `type`.
   const edges: BackendWorkflowEdge[] = workflow.edges.map((e) => ({
     source: e.source,
     target: e.target,
-    on: edgeTypeToOn(e.type),
+    on: e.outcome ?? edgeTypeToOn(e.type),
   }));
 
   return { entryNode, nodes, edges };

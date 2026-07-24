@@ -26,11 +26,13 @@ interface WorkflowState {
   updateNodeLabel: (id: string, label: string) => void;
   updateNodePosition: (id: string, position: { x: number; y: number }) => void;
   addNode: (type: NodeType, position: { x: number; y: number }) => void;
+  insertNodeOnEdge: (type: NodeType, position: { x: number; y: number }, edgeId: string) => void;
   removeNode: (id: string) => void;
   removeEdge: (id: string) => void;
   onNodesChange: (changes: NodeChange<Node>[]) => void;
   onEdgesChange: (changes: EdgeChange<Edge>[]) => void;
   onConnect: (connection: Connection) => void;
+  setEdgeOutcome: (edgeId: string, outcome: 'success' | 'failure') => void;
   resetToDefault: () => void;
   arrangeLayout: () => void;
 }
@@ -201,11 +203,36 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
 
   onConnect: (connection) =>
     set((state) => {
+      const srcNode = state.nodes.find((n) => n.id === connection.source);
+      // Branching nodes (human_gate, decision) may have TWO outgoing edges
+      // (approved/pass + rejected/fail), so they are exempt from the
+      // one-edge-per-handle dedupe used for linear nodes.
+      const isBranching = srcNode?.type === 'human_gate' || srcNode?.type === 'decision';
+
+      const srcHandle = connection.sourceHandle ?? null;
+      const sameHandle = (e: { source: string; sourceHandle?: string | null }) =>
+        e.source === connection.source && (e.sourceHandle ?? null) === srcHandle;
+
+      const keptEdges = isBranching ? state.edges : state.edges.filter((e) => !sameHandle(e));
+      const keptWorkflowEdges = isBranching
+        ? state.workflow.edges
+        : state.workflow.edges.filter((e) => !sameHandle(e));
+
+      // Default outcome for a branch: first edge = success (approved/pass),
+      // a second edge from the same node defaults to failure (rejected/fail).
+      let outcome: 'success' | 'failure' | undefined;
+      if (isBranching) {
+        const existingFromSrc = state.workflow.edges.filter((e) => e.source === connection.source);
+        const hasSuccess = existingFromSrc.some((e) => (e.outcome ?? 'success') === 'success');
+        outcome = hasSuccess ? 'failure' : 'success';
+      }
+
       const newEdge: Edge = {
         ...connection,
         id: `e-${connection.source}-${connection.target}-${Date.now()}`,
         type: 'default',
-        label: '',
+        label: outcome === 'failure' ? 'rejected' : outcome === 'success' ? 'approved' : '',
+        data: outcome ? { outcome } : undefined,
       };
       const newWorkflowEdge = {
         id: newEdge.id,
@@ -213,14 +240,82 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
         target: connection.target!,
         sourceHandle: connection.sourceHandle ?? undefined,
         targetHandle: connection.targetHandle ?? undefined,
-        label: '',
+        label: (newEdge.label as string) ?? '',
         type: 'default' as const,
+        outcome,
       };
       return {
-        edges: addEdge(newEdge, state.edges),
+        edges: addEdge(newEdge, keptEdges),
         workflow: {
           ...state.workflow,
-          edges: [...state.workflow.edges, newWorkflowEdge],
+          edges: [...keptWorkflowEdges, newWorkflowEdge],
+          updatedAt: new Date().toISOString(),
+        },
+      };
+    }),
+
+  setEdgeOutcome: (edgeId, outcome) =>
+    set((state) => {
+      const label = outcome === 'failure' ? 'rejected' : 'approved';
+      return {
+        edges: state.edges.map((e) =>
+          e.id === edgeId ? { ...e, label, data: { ...(e.data ?? {}), outcome } } : e
+        ),
+        workflow: {
+          ...state.workflow,
+          edges: state.workflow.edges.map((e) =>
+            e.id === edgeId ? { ...e, outcome, label } : e
+          ),
+          updatedAt: new Date().toISOString(),
+        },
+      };
+    }),
+
+  insertNodeOnEdge: (type, position, edgeId) =>
+    set((state) => {
+      const edge = state.edges.find((e) => e.id === edgeId);
+      if (!edge) return {};
+
+      nodeCounter++;
+      const defaults = NODE_DEFAULTS[type];
+      const id = `${type}-${Date.now()}-${nodeCounter}`;
+
+      const newNode: Node = {
+        id,
+        type,
+        position,
+        data: { label: defaults.name, config: defaults.config, nodeType: type },
+      };
+      const newWorkflowNode: WorkflowNode = { id, type, name: defaults.name, config: defaults.config, position };
+
+      // Split source -> target into source -> new -> target (preserve edge type).
+      const edgeType = (edge.type as 'default' | 'success' | 'failure') ?? 'default';
+      const mk = (source: string, target: string): Edge => ({
+        id: `e-${source}-${target}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        source,
+        target,
+        type: edgeType,
+        label: '',
+      });
+      const inEdge = mk(edge.source, id);
+      const outEdge = mk(id, edge.target);
+      const toWf = (e: Edge) => ({
+        id: e.id, source: e.source, target: e.target, label: '',
+        type: edgeType,
+      });
+
+      const edges = state.edges.filter((e) => e.id !== edgeId).concat(inEdge, outEdge);
+      const wfEdges = state.workflow.edges
+        .filter((e) => e.id !== edgeId)
+        .concat(toWf(inEdge), toWf(outEdge));
+
+      return {
+        nodes: [...state.nodes, newNode],
+        edges,
+        workflow: {
+          ...state.workflow,
+          nodes: [...state.workflow.nodes, newWorkflowNode],
+          edges: wfEdges,
           updatedAt: new Date().toISOString(),
         },
       };

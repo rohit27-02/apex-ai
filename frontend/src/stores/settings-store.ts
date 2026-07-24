@@ -6,15 +6,43 @@ import { persist } from 'zustand/middleware';
 export type RunnerKind = 'stub' | 'aider';
 export type Provider = 'groq' | 'gemini' | 'openai' | 'deepseek' | 'anthropic' | 'openrouter';
 
-/** Provider -> a sensible default Aider/litellm model string. */
-export const PROVIDER_MODELS: Record<Provider, string> = {
-  groq: 'groq/llama-3.3-70b-versatile',
-  gemini: 'gemini/gemini-2.0-flash',
-  openai: 'openai/gpt-4o-mini',
-  deepseek: 'deepseek/deepseek-chat',
-  anthropic: 'anthropic/claude-3-5-sonnet-20241022',
-  openrouter: 'openrouter/meta-llama/llama-3.3-70b-instruct',
+/** Provider -> the real Aider/litellm model ids it serves. First = default. */
+export const PROVIDER_MODEL_OPTIONS: Record<Provider, string[]> = {
+  groq: [
+    'groq/llama-3.3-70b-versatile',
+    'groq/llama-3.1-8b-instant',
+    'groq/mixtral-8x7b-32768',
+    'groq/gemma2-9b-it',
+  ],
+  gemini: [
+    'gemini/gemini-2.0-flash',
+    'gemini/gemini-1.5-pro',
+    'gemini/gemini-1.5-flash',
+  ],
+  openai: [
+    'openai/gpt-4o',
+    'openai/gpt-4o-mini',
+    'openai/o1-mini',
+  ],
+  deepseek: [
+    'deepseek/deepseek-chat',
+    'deepseek/deepseek-reasoner',
+  ],
+  anthropic: [
+    'anthropic/claude-3-5-sonnet-20241022',
+    'anthropic/claude-3-5-haiku-20241022',
+  ],
+  openrouter: [
+    'openrouter/meta-llama/llama-3.3-70b-instruct',
+    'openrouter/anthropic/claude-3.5-sonnet',
+    'openrouter/deepseek/deepseek-chat',
+  ],
 };
+
+/** Provider -> its default model (first option). */
+export const PROVIDER_MODELS: Record<Provider, string> = Object.fromEntries(
+  Object.entries(PROVIDER_MODEL_OPTIONS).map(([p, models]) => [p, models[0]]),
+) as Record<Provider, string>;
 
 export const PROVIDER_LABELS: Record<Provider, string> = {
   groq: 'Groq',
