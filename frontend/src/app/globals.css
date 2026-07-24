@@ -1,0 +1,438 @@
+@import "tailwindcss";
+@import "@xyflow/react/dist/style.css";
+
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 100 700;
+  font-display: swap;
+  src: url('https://fonts.gstatic.com/s/ibmplexsans/v19/zYX9KVElMYYaJe8bpLHnCwDKjXr8AIFscg.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('https://fonts.gstatic.com/s/ibmplexmono/v19/-F63fjptAgt5VM-kVkqdyU8n5igy1MCzb9s.woff2') format('woff2');
+}
+
+/* ══════════════════════════════════════════════════
+   Dark theme (default) — Deutsche Telekom branding
+   ══════════════════════════════════════════════════ */
+:root,
+[data-theme="dark"] {
+  /* ── shadcn core tokens ── */
+  --background: #0A0A0A;
+  --foreground: #F0F0F0;
+  --card: #141414;
+  --card-foreground: #F0F0F0;
+  --popover: #141414;
+  --popover-foreground: #F0F0F0;
+  --primary: #E20074;
+  --primary-foreground: #FFFFFF;
+  --secondary: #1C1C1C;
+  --secondary-foreground: #F0F0F0;
+  --muted: #1C1C1C;
+  --muted-foreground: #8A8A8A;
+  --accent: #1C1C1C;
+  --accent-foreground: #F0F0F0;
+  --destructive: #DC2626;
+  --destructive-foreground: #FFFFFF;
+  --border: #3A3A3A;
+  --input: #3A3A3A;
+  --ring: #E20074;
+  --radius: 0.75rem;
+
+  /* ── Telekom brand ── */
+  --magenta: #E20074;
+  --magenta-light: #FF4DA6;
+  --magenta-dark: #B8005D;
+
+  /* ── Surfaces ── */
+  --surface: #141414;
+  --surface-raised: #1C1C1C;
+  --surface-overlay: #242424;
+  --border-subtle: #2A2A2A;
+
+  /* ── Text ── */
+  --text-primary: #F0F0F0;
+  --text-secondary: #B0B0B0;
+  --text-muted: #8A8A8A;
+
+  /* ── Nodes ── */
+  --node-bg: #161616;
+  --node-border: #404040;
+  --node-shadow: 0 2px 8px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.04);
+
+  /* ── Canvas ── */
+  --canvas-bg: #0A0A0A;
+  --canvas-dot: #2A2A2A;
+
+  /* ── Panels ── */
+  --panel-bg: #111111;
+
+  /* ── Edges & Handles ── */
+  --edge-color: #505050;
+  --edge-color-hover: #808080;
+  --handle-bg: #505050;
+  --handle-border: #8A8A8A;
+
+  /* ── Node type colors ── */
+  --color-input: #C084FC;
+  --color-input-bg: rgba(192, 132, 252, 0.12);
+  --color-agent: #FF4DA6;
+  --color-agent-bg: rgba(226, 0, 116, 0.12);
+  --color-command: #FBBF24;
+  --color-command-bg: rgba(251, 191, 36, 0.12);
+  --color-validator: #34D399;
+  --color-validator-bg: rgba(52, 211, 153, 0.12);
+  --color-decision: #22D3EE;
+  --color-decision-bg: rgba(34, 211, 238, 0.12);
+  --color-human-gate: #FB923C;
+  --color-human-gate-bg: rgba(251, 146, 60, 0.12);
+  --color-success: #4ADE80;
+  --color-success-bg: rgba(74, 222, 128, 0.12);
+  --color-stop: #F87171;
+  --color-stop-bg: rgba(248, 113, 113, 0.12);
+
+  /* ── Event colors ── */
+  --color-event-agent: #FF4DA6;
+  --color-event-command: #FBBF24;
+  --color-event-file: #C084FC;
+  --color-event-validation: #34D399;
+  --color-event-error: #F87171;
+  --color-event-retry: #FB923C;
+  --color-event-human: #22D3EE;
+
+  /* ── Status colors ── */
+  --color-status-idle-bg: #6B6B6B;
+  --color-status-idle-text: #8A8A8A;
+  --color-status-skipped-bg: #5C5C5C;
+  --color-status-skipped-text: #7A7A7A;
+
+  /* ── Badge colors ── */
+  --color-badge-success: #4ADE80;
+  --color-badge-warning: #FBBF24;
+  --color-badge-danger: #F87171;
+}
+
+/* ══════════════════════════════════════════════════
+   Light theme — Deutsche Telekom branding
+   ══════════════════════════════════════════════════ */
+[data-theme="light"] {
+  /* ── shadcn core tokens ── */
+  --background: #F5F5F5;
+  --foreground: #1A1A1A;
+  --card: #FFFFFF;
+  --card-foreground: #1A1A1A;
+  --popover: #FFFFFF;
+  --popover-foreground: #1A1A1A;
+  --primary: #D4006C;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F0F0F0;
+  --secondary-foreground: #1A1A1A;
+  --muted: #F0F0F0;
+  --muted-foreground: #767676;
+  --accent: #F0F0F0;
+  --accent-foreground: #1A1A1A;
+  --destructive: #DC2626;
+  --destructive-foreground: #FFFFFF;
+  --border: #C8C8C8;
+  --input: #C8C8C8;
+  --ring: #D4006C;
+
+  /* ── Telekom brand ── */
+  --magenta: #D4006C;
+  --magenta-light: #FF4DA6;
+  --magenta-dark: #A30054;
+
+  /* ── Surfaces ── */
+  --surface: #FFFFFF;
+  --surface-raised: #F5F5F5;
+  --surface-overlay: #EBEBEB;
+  --border-subtle: #E0E0E0;
+
+  /* ── Text ── */
+  --text-primary: #1A1A1A;
+  --text-secondary: #4A4A4A;
+  --text-muted: #767676;
+
+  /* ── Nodes ── */
+  --node-bg: #FFFFFF;
+  --node-border: #B8B8B8;
+  --node-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05);
+
+  /* ── Canvas ── */
+  --canvas-bg: #EEEEEE;
+  --canvas-dot: #C8C8C8;
+
+  /* ── Panels ── */
+  --panel-bg: #FAFAFA;
+
+  /* ── Edges & Handles ── */
+  --edge-color: #909090;
+  --edge-color-hover: #606060;
+  --handle-bg: #909090;
+  --handle-border: #767676;
+
+  /* ── Node type colors ── */
+  --color-input: #7C3AED;
+  --color-input-bg: rgba(124, 58, 237, 0.10);
+  --color-agent: #D4006C;
+  --color-agent-bg: rgba(212, 0, 108, 0.10);
+  --color-command: #D97706;
+  --color-command-bg: rgba(217, 119, 6, 0.10);
+  --color-validator: #059669;
+  --color-validator-bg: rgba(5, 150, 105, 0.10);
+  --color-decision: #0891B2;
+  --color-decision-bg: rgba(8, 145, 178, 0.10);
+  --color-human-gate: #EA580C;
+  --color-human-gate-bg: rgba(234, 88, 12, 0.10);
+  --color-success: #16A34A;
+  --color-success-bg: rgba(22, 163, 74, 0.10);
+  --color-stop: #DC2626;
+  --color-stop-bg: rgba(220, 38, 38, 0.10);
+
+  /* ── Event colors ── */
+  --color-event-agent: #D4006C;
+  --color-event-command: #D97706;
+  --color-event-file: #7C3AED;
+  --color-event-validation: #059669;
+  --color-event-error: #DC2626;
+  --color-event-retry: #EA580C;
+  --color-event-human: #0891B2;
+
+  /* ── Status colors ── */
+  --color-status-idle-bg: #A0A0A0;
+  --color-status-idle-text: #767676;
+  --color-status-skipped-bg: #B0B0B0;
+  --color-status-skipped-text: #808080;
+
+  /* ── Badge colors ── */
+  --color-badge-success: #16A34A;
+  --color-badge-warning: #D97706;
+  --color-badge-danger: #DC2626;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-magenta: var(--magenta);
+  --color-magenta-light: var(--magenta-light);
+  --color-magenta-dark: var(--magenta-dark);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-overlay: var(--surface-overlay);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'SF Mono', monospace;
+}
+
+* {
+  border-color: var(--border);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Focus visible for WCAG */
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Skip link for WCAG */
+.sr-only-focusable:focus {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+  padding: 8px 16px;
+  background: var(--primary);
+  color: white;
+  font-weight: 600;
+}
+
+/* Custom scrollbar */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 5px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* ═══════════════════════════════════════════
+   ReactFlow — themed overrides
+   ═══════════════════════════════════════════ */
+
+.react-flow__background {
+  background-color: var(--canvas-bg) !important;
+}
+.react-flow__background pattern circle {
+  fill: var(--canvas-dot) !important;
+}
+
+/* Node wrapper — remove default outlines */
+.react-flow__node,
+.react-flow__node.selection,
+.react-flow__node.selected,
+.react-flow__node.dragging,
+.react-flow__node:focus,
+.react-flow__node:focus-visible,
+.react-flow__node:focus-within {
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  border: none !important;
+  outline-offset: 0 !important;
+}
+
+/* Our actual node card gets the ring on selection */
+.react-flow__node.selected > div[role="button"],
+.react-flow__node:focus > div[role="button"] {
+  outline: none !important;
+}
+
+/* Selection box */
+.react-flow__selection {
+  background: rgba(226, 0, 116, 0.05) !important;
+  border: 1px dashed var(--magenta) !important;
+}
+
+/* Controls */
+.react-flow__controls {
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+  overflow: hidden;
+}
+.react-flow__controls button {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+  color: var(--text-secondary) !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+.react-flow__controls button:last-child {
+  border-bottom: none !important;
+}
+.react-flow__controls button:hover {
+  background: var(--surface-overlay) !important;
+  color: var(--magenta) !important;
+}
+.react-flow__controls button svg {
+  fill: currentColor !important;
+}
+
+/* Minimap */
+.react-flow__minimap {
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+  background: var(--surface) !important;
+  overflow: hidden;
+}
+
+/* Edges */
+.react-flow__edge-path {
+  stroke: var(--edge-color) !important;
+  stroke-width: 2 !important;
+  transition: stroke 0.15s ease, stroke-width 0.15s ease, stroke-dasharray 0.15s ease;
+}
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke: var(--edge-color-hover) !important;
+  stroke-width: 2.5 !important;
+}
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: var(--magenta) !important;
+  stroke-width: 2.5 !important;
+}
+
+/* Handles */
+.react-flow__handle {
+  width: 8px !important;
+  height: 8px !important;
+  background: var(--handle-bg) !important;
+  border: 2px solid var(--handle-border) !important;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.react-flow__handle:hover {
+  background: var(--magenta) !important;
+  border-color: var(--magenta) !important;
+}
+
+/* Edge labels */
+.react-flow__edge-textbg {
+  fill: var(--surface) !important;
+}
+.react-flow__edge-text {
+  fill: var(--text-secondary) !important;
+  font-size: 10px !important;
+  font-family: 'IBM Plex Mono', monospace !important;
+}
+
+/* Attribution */
+.react-flow__attribution {
+  display: none !important;
+}
+
+/* ═══════════════════════════════════════════
+   Animations
+   ═══════════════════════════════════════════ */
+
+@keyframes magenta-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(226, 0, 116, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(226, 0, 116, 0); }
+}
+
+.animate-magenta-pulse {
+  animation: magenta-pulse 2s ease-in-out infinite;
+}
+
+@keyframes edge-dash {
+  to {
+    stroke-dashoffset: -18;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-magenta-pulse,
+  .animate-pulse,
+  .animate-ping {
+    animation: none !important;
+  }
+}
