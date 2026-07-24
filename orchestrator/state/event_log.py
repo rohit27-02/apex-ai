@@ -26,3 +26,6 @@ class EventLog:
 
     def get_events(self) -> list[Event]:
         return self.events
+
+    def get_events_for_node(self, node_id: str) -> list[Event]:
+        return [e for e in self.events if e.node_id == node_id]

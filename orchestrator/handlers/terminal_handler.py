@@ -5,7 +5,7 @@ from __future__ import annotations
 from contracts.models import WorkflowNode, RunState
 
 
-def handle_terminal(node: WorkflowNode, run: RunState, repo_path: str) -> dict:
+def handle(node: WorkflowNode, run: RunState, repo_path: str) -> dict:
     """Handle terminal nodes."""
     return {
         "status": "success",

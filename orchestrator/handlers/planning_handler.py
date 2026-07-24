@@ -13,7 +13,7 @@ from pathlib import Path
 from contracts.models import WorkflowNode, RunState
 
 
-def handle_planning(node: WorkflowNode, run: RunState, repo_path: str) -> dict:
+def handle(node: WorkflowNode, run: RunState, repo_path: str) -> dict:
     """Create or revise the implementation plan."""
     from runners import AiderRunner
 
@@ -32,7 +32,7 @@ def handle_planning(node: WorkflowNode, run: RunState, repo_path: str) -> dict:
         for c in run.criteria
     ])
 
-    # Check for prior failure feedback
+    # Get prior failure feedback
     prior_failure = _get_prior_failure(run)
 
     # Fill prompt
@@ -51,7 +51,7 @@ def handle_planning(node: WorkflowNode, run: RunState, repo_path: str) -> dict:
     return {
         "status": "success",
         "summary": f"Plan created (attempt {run.attempt})",
-        "files_changed": result.files_changed,
+        "transcript_path": result.transcript_path,
         "model_calls": result.model_calls,
     }
 
@@ -60,14 +60,17 @@ def _get_prior_failure(run: RunState) -> str:
     """Get failure feedback from the last validation attempt."""
     for event in reversed(run.events):
         if event.type == "criterion_failed":
-            payload = event.payload
-            return f"Failing criterion: {payload.get('criterion', 'unknown')}. Evidence: {payload.get('stderr', '')}"
+            p = event.payload
+            return f"Failing criterion: {p.get('criterion')}. Evidence: {p.get('stderr', '')}"
     return "null"
 
 
 def _get_repo_tree(repo_path: str) -> str:
     try:
-        result = subprocess.run(["find", ".", "-type", "f", "-not", "-path", "./.git/*"], cwd=repo_path, capture_output=True, text=True, timeout=10)
+        result = subprocess.run(
+            ["find", ".", "-type", "f", "-not", "-path", "./.git/*"],
+            cwd=repo_path, capture_output=True, text=True, timeout=10,
+        )
         return result.stdout[:2000] if result.returncode == 0 else ""
     except Exception:
         return ""
@@ -75,7 +78,10 @@ def _get_repo_tree(repo_path: str) -> str:
 
 def _get_git_ls_files(repo_path: str) -> str:
     try:
-        result = subprocess.run(["git", "ls-files"], cwd=repo_path, capture_output=True, text=True, timeout=10)
+        result = subprocess.run(
+            ["git", "ls-files"],
+            cwd=repo_path, capture_output=True, text=True, timeout=10,
+        )
         return result.stdout[:2000] if result.returncode == 0 else ""
     except Exception:
         return ""

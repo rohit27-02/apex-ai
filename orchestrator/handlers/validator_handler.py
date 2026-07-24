@@ -2,6 +2,8 @@
 
 Runs each criterion's shell command, checks exit codes, records pass/fail.
 ZERO LLM — pure subprocess execution.
+
+This is the heart of the system: the LLM can NEVER turn a red check green.
 """
 
 from __future__ import annotations
@@ -13,7 +15,7 @@ from pathlib import Path
 from contracts.models import WorkflowNode, RunState, Criterion, CriterionStatus
 
 
-def handle_validator(node: WorkflowNode, run: RunState, repo_path: str) -> dict:
+def handle(node: WorkflowNode, run: RunState, repo_path: str) -> dict:
     """Run all criteria and determine pass/fail."""
     results = []
 
@@ -26,10 +28,15 @@ def handle_validator(node: WorkflowNode, run: RunState, repo_path: str) -> dict:
 
     # Determine overall verdict
     all_passed = all(r.status == CriterionStatus.passed for r in results)
+    passed_count = sum(1 for r in results if r.status == CriterionStatus.passed)
 
     return {
         "status": "success" if all_passed else "failed",
-        "summary": f"{sum(1 for r in results if r.status == CriterionStatus.passed)}/{len(results)} passed",
+        "summary": f"{passed_count}/{len(results)} criteria passed",
+        "criteria_results": [
+            {"id": r.id, "status": r.status.value, "exit_code": None}
+            for r in results
+        ],
     }
 
 
@@ -47,21 +54,15 @@ def _run_criterion(criterion: Criterion, repo_path: str) -> Criterion:
             timeout=120,
             check=False,
         )
-        duration = round(time.monotonic() - start, 3)
         exit_code = proc.returncode
         status = CriterionStatus.passed if exit_code == criterion.expect_exit_code else CriterionStatus.failed
-        evidence = (proc.stdout + proc.stderr)[-2000:]
 
     except subprocess.TimeoutExpired:
-        duration = round(time.monotonic() - start, 3)
         exit_code = -1
         status = CriterionStatus.failed
-        evidence = f"TIMEOUT after 120s"
-    except OSError as exc:
-        duration = round(time.monotonic() - start, 3)
+    except OSError:
         exit_code = -1
         status = CriterionStatus.failed
-        evidence = f"failed to launch: {exc}"
 
     return Criterion(
         id=criterion.id,
