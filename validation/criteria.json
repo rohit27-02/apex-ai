@@ -1,0 +1,39 @@
+{
+  "objective": "Add pagination and status filtering to GET /todos, keep the existing API compatible, and add tests.",
+  "repo_path": "target-repo",
+  "notes": "Commands run with cwd = repo_path. Run them inside the project venv so `python` and `ruff` resolve. The verdict is all(exit_code == expect_exit_code); no LLM is involved.",
+  "criteria": [
+    {
+      "id": "compat",
+      "description": "Backward compatibility: existing CRUD + response shape unchanged",
+      "type": "test",
+      "command": "python -m pytest tests -q",
+      "expect_exit_code": 0,
+      "timeout": 120
+    },
+    {
+      "id": "pagination",
+      "description": "New feature: pagination + status filtering happy paths",
+      "type": "test",
+      "command": "python -m pytest acceptance/test_pagination.py -q",
+      "expect_exit_code": 0,
+      "timeout": 120
+    },
+    {
+      "id": "edge-cases",
+      "description": "Edge-case robustness: invalid paging returns 422, out-of-range page returns empty array",
+      "type": "test",
+      "command": "python -m pytest acceptance/test_edge_cases.py -q",
+      "expect_exit_code": 0,
+      "timeout": 120
+    },
+    {
+      "id": "lint",
+      "description": "Lint and import-order checks are clean",
+      "type": "lint",
+      "command": "ruff check .",
+      "expect_exit_code": 0,
+      "timeout": 60
+    }
+  ]
+}
