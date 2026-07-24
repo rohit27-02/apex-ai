@@ -1,5 +1,6 @@
-Folder Structure:
+# AI Coding Loop - Project Structure
 
+```text
 ai-coding-loop/
 │
 ├── README.md
@@ -13,15 +14,15 @@ ai-coding-loop/
 │   └── models.py                      # Pydantic models
 │
 ├── api/                               # Person A
-│   ├── _init_.py
+│   ├── __init__.py
 │   ├── main.py                        # FastAPI app entry point
 │   └── routes/
-│       ├── _init_.py
+│       ├── __init__.py
 │       ├── runs.py                    # POST /runs, GET /runs/{id}
 │       └── workflows.py               # POST /workflows/export
 │
 ├── orchestrator/                      # Person A
-│   ├── _init_.py
+│   ├── __init__.py
 │   │
 │   ├── engine.py                      # Main workflow execution loop
 │   ├── dispatcher.py                  # Maps node type → handler
@@ -30,7 +31,7 @@ ai-coding-loop/
 │   ├── rollback.py                    # Git rollback + green verification
 │   │
 │   ├── handlers/
-│   │   ├── _init_.py
+│   │   ├── __init__.py
 │   │   ├── input_handler.py
 │   │   ├── agent_handler.py
 │   │   ├── command_handler.py
@@ -40,9 +41,9 @@ ai-coding-loop/
 │   │   └── terminal_handler.py
 │   │
 │   └── state/
-│       ├── _init_.py
+│       ├── __init__.py
 │       ├── run_state.py               # Runtime state management
-│       └── event_log.py               # Append events/receipts
+│       └── event_log.py               # Append events / receipts
 │
 ├── runners/                           # Person B
 │   ├── base.py
@@ -73,6 +74,7 @@ ai-coding-loop/
 │           │   ├── transcript.jsonl
 │           │   ├── events.jsonl
 │           │   └── validation.json
+│           │
 │           └── attempt-2/
 │               ├── transcript.jsonl
 │               ├── events.jsonl
@@ -83,3 +85,4 @@ ai-coding-loop/
 │
 └── demo/                              # Person D
     └── ...
+```
