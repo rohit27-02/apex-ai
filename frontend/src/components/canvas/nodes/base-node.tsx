@@ -40,7 +40,7 @@ function StatusBadge({ status }: { status: NodeStatus }) {
   return (
     <div
       className={cn(
-        'absolute -top-2.5 -right-2.5 z-20 flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider shadow-md',
+        'absolute -top-2.5 -left-2.5 z-20 flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider shadow-md',
         colors[status],
         status === 'running' && 'animate-magenta-pulse',
       )}
@@ -141,9 +141,9 @@ function BaseNode({ id, data, selected }: NodeProps) {
         selected && 'ring-2 ring-primary ring-offset-2 ring-offset-background',
         // Status-driven border colors
         nodeStatus === 'running' && 'border-[#E20074] animate-magenta-pulse',
-        nodeStatus === 'success' && 'border-green-500/60',
-        nodeStatus === 'failure' && 'border-red-500/60',
-        nodeStatus === 'waiting' && 'border-amber-500/60',
+        nodeStatus === 'success' && 'border-green-500',
+        nodeStatus === 'failure' && 'border-red-500',
+        nodeStatus === 'waiting' && 'border-amber-500',
         nodeStatus === 'skipped' && 'border-muted-foreground/30 opacity-60',
         // Default border when idle
         nodeStatus === 'idle' && 'border-border',
