@@ -25,6 +25,45 @@ const queryClient = new QueryClient({
   },
 });
 
+function getIncomingSummary(
+  nodeType: string,
+  config: Record<string, unknown> | undefined,
+  objective: string,
+  criteria: { id: string; label: string }[],
+): string {
+  switch (nodeType) {
+    case 'input':
+      return objective || '(no objective)';
+    case 'agent':
+      return `Objective + ${criteria.length} criteria`;
+    case 'command':
+      return (config?.command as string) || '(no command)';
+    case 'validator':
+      return `${criteria.length} criteria to check`;
+    case 'decision':
+      return 'Validation verdict';
+    case 'human_gate':
+      return 'Review changes';
+    case 'success':
+      return 'All criteria passed';
+    case 'stop':
+      return 'Budget exhausted';
+    default:
+      return '';
+  }
+}
+
+function getOutgoingSummary(
+  nodeType: string,
+  nodeState: { status?: string; output?: string } | undefined,
+): string {
+  if (!nodeState || nodeState.status === 'idle' || nodeState.status === 'skipped') return '';
+  if (nodeState.status === 'running') return 'Processing…';
+  if (nodeState.status === 'failure') return 'Failed';
+  if (nodeState.output) return nodeState.output.length > 60 ? nodeState.output.slice(0, 60) + '…' : nodeState.output;
+  return nodeState.status === 'success' ? 'Done' : '';
+}
+
 function CanvasPageInner() {
   const [runId, setRunId] = useState<string | null>(null);
   const [demoRun, setDemoRun] = useState<Run | null>(null);
@@ -50,6 +89,12 @@ function CanvasPageInner() {
     const updatedNodes = nodes.map((n) => {
       const nodeState = nodeStates[n.id];
       const isValidator = n.data?.nodeType === 'validator' || n.type === 'validator';
+      const nodeType = (n.data?.nodeType as string) ?? n.type;
+
+      // Derive incoming/outgoing summaries from node type and state
+      const incoming = getIncomingSummary(nodeType, n.data?.config as Record<string, unknown>, run.objective, run.criteria);
+      const outgoing = getOutgoingSummary(nodeType, nodeState);
+
       return {
         ...n,
         data: {
@@ -58,8 +103,11 @@ function CanvasPageInner() {
           output: nodeState?.output ?? null,
           error: nodeState?.error ?? null,
           logs: nodeState?.logs ?? null,
-          // Attach criteria (with evidence) to the validation node for inspection.
+          durationMs: nodeState?.durationMs ?? null,
+          tokenUsage: nodeState?.tokenUsage ?? null,
           criteria: isValidator ? run.criteria : null,
+          incoming,
+          outgoing,
         },
       };
     });
@@ -99,25 +147,50 @@ function CanvasPageInner() {
       } catch (err) {
         console.error('Failed to stop run:', err);
       }
+      // After stopping, do one final poll to get the stopped state with updated node statuses
+      try {
+        const { fetchRun } = await import('@/lib/api');
+        const stoppedRun = await fetchRun(runId);
+        // Apply the stopped node statuses to the canvas
+        const nodeStates = stoppedRun.nodeStates as Record<string, NodeRunState>;
+        const currentNodes = useWorkflowStore.getState().nodes;
+        const updatedNodes = currentNodes.map((n) => {
+          const ns = nodeStates[n.id];
+          if (ns && ns.status !== 'idle') {
+            return {
+              ...n,
+              data: {
+                ...n.data,
+                status: ns.status as NodeStatus,
+                output: ns.output ?? n.data.output,
+                error: ns.error ?? n.data.error,
+              },
+            };
+          }
+          return n;
+        });
+        useWorkflowStore.setState({ nodes: updatedNodes });
+      } catch {
+        // If final poll fails, leave current state as-is
+      }
       setRunId(null);
     } else {
       stopDemoRun();
       setDemoRun((prev) => prev ? { ...prev, status: 'stopped', completedAt: new Date().toISOString() } : null);
     }
-    // Reset node statuses
-    const currentNodes = useWorkflowStore.getState().nodes;
-    const resetNodes = currentNodes.map((n) => ({
-      ...n,
-      data: { ...n.data, status: 'idle' as NodeStatus, output: null, error: null },
-    }));
-    useWorkflowStore.setState({ nodes: resetNodes });
+    // Do NOT reset node statuses — preserve for inspection
   }, [runId]);
 
   // ── Human gate ──
 
   const handleApprove = useCallback(async (nodeId: string, feedback?: string) => {
     if (runId) {
-      await approveRun(runId, nodeId, feedback);
+      try {
+        await approveRun(runId, nodeId, feedback);
+      } catch (err) {
+        console.error('Approve failed, trying demo:', err);
+        approveDemoGate();
+      }
     } else if (demoRun) {
       approveDemoGate();
     }
@@ -125,7 +198,12 @@ function CanvasPageInner() {
 
   const handleReject = useCallback(async (nodeId: string, feedback?: string) => {
     if (runId) {
-      await rejectRun(runId, nodeId, feedback);
+      try {
+        await rejectRun(runId, nodeId, feedback);
+      } catch (err) {
+        console.error('Reject failed, trying demo:', err);
+        rejectDemoGate();
+      }
     } else if (demoRun) {
       rejectDemoGate();
     }
@@ -153,12 +231,13 @@ function CanvasPageInner() {
       />
 
       <div className="flex-1 flex overflow-hidden">
-        <NodeLibrary />
+        <NodeLibrary isRunning={!!run && run.status === 'running'} />
 
         <main id="main-canvas" className="flex-1 flex flex-col overflow-hidden" role="main" aria-label="Workflow canvas area">
           <div className="flex-1 relative">
             <WorkflowCanvas
               run={run}
+              isRunning={!!run && run.status === 'running'}
               waitingGateNodeId={waitingGate?.[0] ?? null}
               onApproveGate={handleApprove}
               onRejectGate={handleReject}

@@ -5,15 +5,24 @@ import { Sun, Moon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export function ThemeToggle() {
-  // Lazy initializer reads localStorage once — no setState inside the effect.
-  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-    if (typeof window === 'undefined') return 'dark';
-    return (localStorage.getItem('apex-theme') as 'dark' | 'light' | null) ?? 'dark';
-  });
+  // Always start with 'dark' so server and client render identically.
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  // Block the real icon/label until after hydration to avoid mismatch.
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [theme]);
+    const stored = localStorage.getItem('apex-theme') as 'dark' | 'light' | null;
+    const initial = stored ?? 'dark';
+    setTheme(initial);
+    document.documentElement.setAttribute('data-theme', initial);
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (mounted) {
+      document.documentElement.setAttribute('data-theme', theme);
+    }
+  }, [theme, mounted]);
 
   const toggle = () => {
     const next = theme === 'dark' ? 'light' : 'dark';
@@ -21,18 +30,28 @@ export function ThemeToggle() {
     localStorage.setItem('apex-theme', next);
   };
 
+  // Before hydration, render a static dark-theme icon so server/client match.
+  const label = mounted
+    ? `Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`
+    : 'Switch to light theme';
+
   return (
     <Button
       variant="ghost"
       size="icon"
       onClick={toggle}
-      aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
-      title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+      aria-label={label}
+      title={label}
     >
-      {theme === 'dark' ? (
-        <Sun className="h-4 w-4" aria-hidden="true" />
+      {mounted ? (
+        theme === 'dark' ? (
+          <Sun className="h-4 w-4" aria-hidden="true" />
+        ) : (
+          <Moon className="h-4 w-4" aria-hidden="true" />
+        )
       ) : (
-        <Moon className="h-4 w-4" aria-hidden="true" />
+        // Static placeholder that matches the server render (dark → Sun)
+        <Sun className="h-4 w-4" aria-hidden="true" />
       )}
     </Button>
   );

@@ -108,43 +108,47 @@ function eventMessage(e: BackendEvent): string {
     case 'run_started':
       return `Run started: ${p.objective ?? ''}`;
     case 'node_started':
-      return `Node started (attempt ${p.attempt ?? '?'})`;
+      return `Starting ${e.node_id} (attempt ${p.attempt ?? '?'})`;
     case 'node_finished':
-      return `Node finished`;
-    case 'agent_invoked':
-      return `Agent invoked: ${p.role ?? e.node_id} (attempt ${p.attempt ?? '?'})`;
+      return `Completed ${e.node_id}`;
+    case 'agent_invoked': {
+      const role = p.role ?? e.node_id;
+      return `Running ${role} agent (attempt ${p.attempt ?? '?'})`;
+    }
     case 'command_executed':
-      return `Command: ${p.command ?? ''} → exit ${p.exit_code ?? '?'}`;
-    case 'files_changed':
-      return `Files changed: ${((p.files as string[]) ?? []).join(', ') || 'none'}`;
+      return `Executed: ${p.command ?? ''} → exit ${p.exit_code ?? '?'}`;
+    case 'files_changed': {
+      const files = (p.files as string[]) ?? [];
+      return `Changed ${files.length} file${files.length !== 1 ? 's' : ''}: ${files.slice(0, 3).join(', ')}${files.length > 3 ? ` +${files.length - 3} more` : ''}`;
+    }
     case 'validation_started':
-      return `Validation started (attempt ${p.attempt ?? '?'})`;
+      return `Validating (attempt ${p.attempt ?? '?'})`;
     case 'criterion_passed':
-      return `Criterion passed: ${p.criterion ?? ''} (exit ${p.exit_code ?? 0})`;
+      return `✓ ${p.criterion ?? ''} passed`;
     case 'criterion_failed':
-      return `Criterion FAILED: ${p.criterion ?? ''} (exit ${p.exit_code}, expected ${p.expected})`;
+      return `✗ ${p.criterion ?? ''} FAILED (expected exit ${p.expected}, got ${p.exit_code})`;
     case 'retry_triggered':
-      return `Retry → attempt ${p.attempt ?? '?'}: ${p.reason ?? ''}`;
+      return `⟳ Retry attempt ${p.attempt ?? '?'}: ${p.reason ?? ''}`;
     case 'rollback_started':
-      return `Rolling back to base ref ${String(p.base_ref ?? '').slice(0, 8) || '(none)'}`;
+      return `Rolling back to ${String(p.base_ref ?? '').slice(0, 8) || 'baseline'}…`;
     case 'rollback_completed':
-      return p.performed ? 'Rollback completed' : 'Rollback skipped (no git baseline)';
+      return p.performed ? 'Rollback complete' : 'Rollback skipped (no git baseline)';
     case 'post_rollback_verification_passed':
-      return 'Post-rollback verification: workspace is GREEN';
+      return '✓ Post-rollback: workspace is GREEN';
     case 'post_rollback_verification_failed':
-      return 'Post-rollback verification FAILED';
+      return '✗ Post-rollback verification FAILED';
     case 'human_gate_awaiting':
-      return 'Awaiting human approval...';
+      return '⏸ Awaiting human approval…';
     case 'human_gate_approved':
-      return p.auto ? 'Human gate auto-approved' : 'Approved by reviewer';
+      return p.auto ? '✓ Auto-approved' : '✓ Approved by reviewer';
     case 'human_gate_rejected':
-      return 'Rejected by reviewer — stopping safely';
+      return '✗ Rejected — stopping safely';
     case 'human_feedback':
-      return `Reviewer feedback: ${p.feedback ?? ''}`;
+      return `Feedback: ${p.feedback ?? ''}`;
     case 'run_stopped_safely':
-      return `Run stopped safely: ${p.reason ?? ''} (delivered: false)`;
+      return `Stopped: ${p.reason ?? ''}`;
     case 'run_succeeded':
-      return `Task successful — delivered on attempt ${p.attempt ?? '?'}`;
+      return `✓ Task complete — delivered on attempt ${p.attempt ?? '?'}`;
     default:
       return e.type;
   }
@@ -182,6 +186,13 @@ export function backendRunToRun(b: BackendRunState): Run {
   for (const [id, ns] of Object.entries(b.node_states ?? {})) {
     // A node still 'running' while the run is paused is the waiting human gate.
     const waiting = b.status === 'awaiting_approval' && ns.status === 'running';
+    // Compute duration from timestamps if both are present.
+    let durationMs: number | undefined;
+    if (ns.started_at && ns.ended_at) {
+      durationMs = Math.round(
+        (new Date(ns.ended_at).getTime() - new Date(ns.started_at).getTime()),
+      );
+    }
     nodeStates[id] = {
       status: waiting ? 'waiting' : NODE_STATUS_MAP[ns.status] ?? 'idle',
       output: ns.result_summary ?? undefined,
@@ -189,6 +200,7 @@ export function backendRunToRun(b: BackendRunState): Run {
       logs: ns.logs && ns.logs.length ? ns.logs : undefined,
       startedAt: ns.started_at ?? undefined,
       completedAt: ns.ended_at ?? undefined,
+      durationMs,
     };
   }
 
@@ -220,5 +232,6 @@ export function backendRunToRun(b: BackendRunState): Run {
     nodeStates,
     startedAt: b.started_at,
     completedAt: isTerminal ? b.updated_at : undefined,
+    totalDurationMs: b.cost?.seconds ? Math.round(b.cost.seconds * 1000) : undefined,
   };
 }

@@ -8,10 +8,11 @@ import { Panel, PanelHeader, PanelContent } from '@/components/ui/panel';
 import { GripVertical, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import type { NodeType } from '@/types/workflow';
 
-export function NodeLibrary() {
+export function NodeLibrary({ isRunning = false }: { isRunning?: boolean }) {
   const [collapsed, setCollapsed] = useState(false);
 
   const onDragStart = (event: React.DragEvent, nodeType: NodeType) => {
+    if (isRunning) return;
     event.dataTransfer.setData('application/reactflow-type', nodeType);
     event.dataTransfer.effectAllowed = 'move';
   };
@@ -49,14 +50,18 @@ export function NodeLibrary() {
               return (
                 <li key={item.type}>
                   <div
-                    draggable
+                    draggable={!isRunning}
                     onDragStart={(e) => onDragStart(e, item.type)}
                     role="button"
                     tabIndex={0}
                     aria-label={`Drag ${item.label} node to canvas`}
-                    title={collapsed ? item.label : undefined}
+                    aria-disabled={isRunning}
+                    title={collapsed ? item.label : isRunning ? 'Cannot add nodes while running' : undefined}
                     className={cn(
-                      'flex items-center rounded-lg cursor-grab active:cursor-grabbing',
+                      'flex items-center rounded-lg',
+                      isRunning
+                        ? 'cursor-not-allowed opacity-50'
+                        : 'cursor-grab active:cursor-grabbing',
                       'border border-transparent hover:border-border hover:bg-muted',
                       'transition-all duration-150 group',
                       collapsed ? 'justify-center p-2' : 'gap-3 px-3 py-2.5'

@@ -39,7 +39,7 @@ class ScriptedRunner:
         self.exec_calls = 0
         self.model_calls_total = 0
 
-    def run(self, prompt: str, cwd: str, tools=None) -> RunnerResult:
+    def run(self, prompt: str, cwd: str, tools=None, on_log=None, **kwargs) -> RunnerResult:
         run_dir = Path(cwd) / ".run_output"
         run_dir.mkdir(parents=True, exist_ok=True)
         transcript = run_dir / "transcript.jsonl"
@@ -90,7 +90,7 @@ def build_workflow(criteria: list[dict], max_attempts: int = 3) -> Workflow:
 MARKER_CRITERION = [{
     "id": "c1",
     "description": "marker.txt exists",
-    "command": "test -f marker.txt",
+    "command": "python -c \"import os, sys; sys.exit(0 if os.path.exists('marker.txt') else 1)\"",
     "expect_exit_code": 0,
 }]
 
@@ -188,7 +188,7 @@ class TestDeterministicVerdict:
         def verdict() -> CriterionStatus:
             run = init_run_state(wf, "x", 1)
             run.attempt = 1
-            run.criteria = [Criterion(id="c1", description="m", command="test -f marker.txt")]
+            run.criteria = [Criterion(id="c1", description="m", command="python -c \"import os, sys; sys.exit(0 if os.path.exists('marker.txt') else 1)\"")]
             ctx = HandlerContext(workflow=wf, run=run, runner=ScriptedRunner(),
                                  repo_path=str(tmp_path), prompts_dir=Path("."))
             handle_validator(wf.get_node("validation"), ctx)
@@ -221,19 +221,19 @@ class TestGitRollback:
     def test_working_tree_clean_after_exhaustion(self, git_repo: Path) -> None:
         # criterion never satisfiable; runner dirties the tree each attempt
         criteria = [{"id": "c1", "description": "feature present",
-                     "command": "grep -q FEATURE data.txt", "expect_exit_code": 0}]
+                     "command": "python -c \"import sys; sys.exit(0 if 'FEATURE' in open('data.txt').read() else 1)\"", "expect_exit_code": 0}]
         wf = build_workflow(criteria, max_attempts=2)
 
         class DirtyRunner(ScriptedRunner):
-            def run(self, prompt, cwd, tools=None):
+            def run(self, prompt, cwd, tools=None, on_log=None, **kwargs):
                 if "Execution Agent" in prompt:
                     p = Path(cwd) / "data.txt"
                     p.write_text(p.read_text() + "BROKEN\n")  # dirty, never adds FEATURE
-                return super().run(prompt, cwd, tools)
+                return super().run(prompt, cwd, tools, on_log=on_log, **kwargs)
 
         orch = Orchestrator(
             wf, runner=DirtyRunner(fix_on_attempt=99), repo_path=str(git_repo),
-            objective="x", green_command='test "$(cat data.txt)" = "base"',
+            objective="x", green_command='python -c "import sys; sys.exit(0 if open(\'data.txt\').read().strip() == \'base\' else 1)"',
         )
         run = orch.run_to_completion()
 

@@ -27,6 +27,7 @@ from pydantic import BaseModel
 
 from backend.contracts.models import (
     NodeType,
+    NodeStatus,
     RunCreateRequest,
     RunState,
     RunStatus,
@@ -64,14 +65,25 @@ class ApprovalRequest(BaseModel):
 
 def _build_runner(request: RunCreateRequest) -> Runner:
     if request.runner == "aider":
-        from backend.runners.aider_runner import AiderRunner
+        from backend.runners.aider_runner import OpenAIRunner
 
         kwargs: dict = {}
         if request.model:
             kwargs["model"] = request.model
-        if request.api_key:            # BYOK from the frontend
+        if request.api_key:
             kwargs["api_key"] = request.api_key
-        return AiderRunner(**kwargs)
+        if request.base_url:
+            kwargs["base_url"] = request.base_url
+        return OpenAIRunner(**kwargs)
+    elif request.runner == "react":
+        from backend.runners.react_runner import ReactRunner
+
+        kwargs: dict = {}
+        if request.model:
+            kwargs["model"] = request.model
+        if request.api_key:
+            kwargs["api_key"] = request.api_key
+        return ReactRunner(**kwargs)
     return StubRunner()
 
 
@@ -100,6 +112,12 @@ def health() -> dict:
 
 @app.post("/runs", response_model=RunState)
 def create_run(request: RunCreateRequest, background_tasks: BackgroundTasks) -> Response:
+    import sys
+    print(f"[DEBUG] Runner: {request.runner}, Model: {request.model}", file=sys.stderr)
+    print(f"[DEBUG] API key: {'SET' if request.api_key else 'NOT SET'}", file=sys.stderr)
+    print(f"[DEBUG] Base URL: {request.base_url or '(default)'}", file=sys.stderr)
+    print(f"[DEBUG] Workflow edges: {[(e.source, e.target, e.on) for e in request.workflow.edges]}", file=sys.stderr)
+    print(f"[DEBUG] Max attempts: {request.maxAttempts}", file=sys.stderr)
     # No target repo given -> isolated scratch workspace, never the server CWD.
     repo_path = (request.repo_path or request.workflow.repo_path
                  or tempfile.mkdtemp(prefix="apex-workspace-"))
@@ -148,6 +166,12 @@ def stop_run(run_id: str) -> Response:
     if run.status in _ACTIVE:
         run.status = RunStatus.stopped_safely
         run.delivered = False
+        # Mark any currently running nodes as stopped
+        for nid, ns in run.node_states.items():
+            if ns.status == NodeStatus.running:
+                ns.status = NodeStatus.failed
+                ns.result_summary = "stopped by user"
+                ns.ended_at = datetime.now(timezone.utc)
         orch = _orchestrators.get(run_id)
         stop_node = None
         if orch is not None:

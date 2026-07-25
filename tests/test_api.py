@@ -78,7 +78,7 @@ def _event_types(state: dict) -> list[str]:
 class TestRealRuns:
     def test_passing_run_delivers(self, tmp_path: Path) -> None:
         req = make_request(
-            [{"id": "c1", "description": "always green", "command": "true"}],
+            [{"id": "c1", "description": "always green", "command": "python -c \"import sys; sys.exit(0)\""}],
             repo_path=str(tmp_path),
         )
         r = client.post("/runs", json=req)
@@ -96,7 +96,7 @@ class TestRealRuns:
 
     def test_failing_run_retreats_honestly(self, tmp_path: Path) -> None:
         req = make_request(
-            [{"id": "c1", "description": "always red", "command": "false"}],
+            [{"id": "c1", "description": "always red", "command": "python -c \"import sys; sys.exit(1)\""}],
             repo_path=str(tmp_path),
             max_attempts=2,
         )
@@ -126,7 +126,7 @@ class TestRealRuns:
 
     def test_cost_counters_present(self, tmp_path: Path) -> None:
         req = make_request(
-            [{"id": "c1", "description": "green", "command": "true"}],
+            [{"id": "c1", "description": "green", "command": "python -c \"import sys; sys.exit(0)\""}],
             repo_path=str(tmp_path),
         )
         run_id = client.post("/runs", json=req).json()["run_id"]
@@ -142,7 +142,7 @@ class TestRealRuns:
 class TestHumanGate:
     def _paused_run(self, tmp_path: Path) -> str:
         req = make_request(
-            [{"id": "c1", "description": "green", "command": "true"}],
+            [{"id": "c1", "description": "green", "command": "python -c \"import sys; sys.exit(0)\""}],
             repo_path=str(tmp_path),
             auto_approve=False,
         )
@@ -171,7 +171,7 @@ class TestHumanGate:
 
     def test_approve_when_not_paused_is_409(self, tmp_path: Path) -> None:
         req = make_request(
-            [{"id": "c1", "description": "green", "command": "true"}],
+            [{"id": "c1", "description": "green", "command": "python -c \"import sys; sys.exit(0)\""}],
             repo_path=str(tmp_path),
         )
         run_id = client.post("/runs", json=req).json()["run_id"]  # auto-approved
@@ -205,7 +205,7 @@ class TestControls:
 
     def test_stop_completed_run_is_noop(self, tmp_path: Path) -> None:
         req = make_request(
-            [{"id": "c1", "description": "green", "command": "true"}],
+            [{"id": "c1", "description": "green", "command": "python -c \"import sys; sys.exit(0)\""}],
             repo_path=str(tmp_path),
         )
         run_id = client.post("/runs", json=req).json()["run_id"]
@@ -215,7 +215,7 @@ class TestControls:
 
     def test_list_runs_includes_created(self, tmp_path: Path) -> None:
         req = make_request(
-            [{"id": "c1", "description": "green", "command": "true"}],
+            [{"id": "c1", "description": "green", "command": "python -c \"import sys; sys.exit(0)\""}],
             repo_path=str(tmp_path),
         )
         run_id = client.post("/runs", json=req).json()["run_id"]
@@ -285,7 +285,7 @@ class TestFrontendSeam:
         # StubRunner writes app/main.py, so this criterion genuinely passes.
         req = make_canvas_request(
             [{"id": "c1", "description": "patched module exists",
-              "command": "test -f app/main.py"}],
+              "command": "python -c \"import os, sys; sys.exit(0 if os.path.exists('app/main.py') else 1)\""}],
             repo_path=str(tmp_path),
         )
         run_id = client.post("/runs", json=req).json()["run_id"]
@@ -306,7 +306,7 @@ class TestFrontendSeam:
         """Omitting repo_path must never run in the server CWD."""
         req = make_canvas_request(
             [{"id": "c1", "description": "patched module exists",
-              "command": "test -f app/main.py"}],
+              "command": "python -c \"import os, sys; sys.exit(0 if os.path.exists('app/main.py') else 1)\""}],
             repo_path="", auto_approve=True,
         )
         run_id = client.post("/runs", json=req).json()["run_id"]

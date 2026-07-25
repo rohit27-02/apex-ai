@@ -8,6 +8,7 @@ import {
   useSettingsStore,
   PROVIDER_LABELS,
   PROVIDER_MODELS,
+  PROVIDER_BASE_URLS,
   type Provider,
   type RunnerKind,
 } from '@/stores/settings-store';
@@ -22,12 +23,13 @@ const PROVIDER_KEY_HINT: Record<Provider, string> = {
   deepseek: 'platform.deepseek.com',
   anthropic: 'console.anthropic.com',
   openrouter: 'openrouter.ai/keys',
+  custom: 'your provider\'s dashboard',
 };
 
 export function SettingsModal() {
   const [open, setOpen] = useState(false);
   const [showKey, setShowKey] = useState(false);
-  const { runner, provider, model, apiKey, setRunner, setProvider, setModel, setApiKey } =
+  const { runner, provider, model, apiKey, baseUrl, setRunner, setProvider, setModel, setApiKey, setBaseUrl } =
     useSettingsStore();
 
   const isAider = runner === 'aider';
@@ -42,7 +44,6 @@ export function SettingsModal() {
         className="relative inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
       >
         <Settings className="h-4 w-4" aria-hidden="true" />
-        {/* amber dot when aider is selected but no key entered */}
         {isAider && !apiKey.trim() && (
           <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-amber-500" />
         )}
@@ -50,7 +51,7 @@ export function SettingsModal() {
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-card border border-border rounded-xl p-6 w-[460px] shadow-2xl">
+          <div className="bg-card border border-border rounded-xl p-6 w-[480px] shadow-2xl">
             <div className="flex items-center justify-between mb-1">
               <h2 className="text-sm font-semibold text-foreground">Execution Settings</h2>
               <button
@@ -79,7 +80,7 @@ export function SettingsModal() {
                       : 'bg-muted border-border text-muted-foreground hover:text-foreground',
                   )}
                 >
-                  {r === 'stub' ? 'Stub (no key, instant)' : 'Aider (real LLM)'}
+                  {r === 'stub' ? 'Stub (no key, instant)' : 'OpenAI SDK (real LLM)'}
                 </button>
               ))}
             </div>
@@ -109,7 +110,18 @@ export function SettingsModal() {
                 <Input
                   value={model}
                   onChange={(e) => setModel(e.target.value)}
-                  placeholder={PROVIDER_MODELS[provider]}
+                  placeholder={PROVIDER_MODELS[provider] || 'model-name'}
+                  className="mb-4 font-mono text-xs"
+                />
+
+                {/* Base URL (for custom / Cursor) */}
+                <label className="text-xs text-muted-foreground font-medium mb-1.5 block">
+                  Base URL <span className="text-muted-foreground/50">(optional, for Cursor or custom endpoints)</span>
+                </label>
+                <Input
+                  value={baseUrl}
+                  onChange={(e) => setBaseUrl(e.target.value)}
+                  placeholder={PROVIDER_BASE_URLS[provider] || 'https://api.openai.com/v1'}
                   className="mb-4 font-mono text-xs"
                 />
 
@@ -136,7 +148,9 @@ export function SettingsModal() {
                   </button>
                 </div>
                 <p className="text-[10px] text-muted-foreground/60 mb-4">
-                  Get a {PROVIDER_LABELS[provider]} key at {PROVIDER_KEY_HINT[provider]}
+                  {provider === 'custom'
+                    ? 'Enter the API key for your custom OpenAI-compatible provider.'
+                    : <>Get a {PROVIDER_LABELS[provider]} key at {PROVIDER_KEY_HINT[provider]}</>}
                 </p>
               </>
             )}
@@ -153,7 +167,7 @@ export function SettingsModal() {
                     <Check className="h-3 w-3" /> Ready
                   </>
                 ) : (
-                  'API key required for Aider'
+                  'API key required for LLM runner'
                 )}
               </span>
               <Button size="sm" variant="default" onClick={() => setOpen(false)}>

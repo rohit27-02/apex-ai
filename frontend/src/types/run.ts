@@ -26,6 +26,12 @@ export interface CriteriaItem {
   evidence?: string;
 }
 
+export interface TokenUsage {
+  input: number;
+  output: number;
+  total: number;
+}
+
 export interface NodeRunState {
   status: 'idle' | 'running' | 'success' | 'failure' | 'skipped' | 'waiting';
   output?: string;
@@ -33,6 +39,8 @@ export interface NodeRunState {
   logs?: string[];
   startedAt?: string;
   completedAt?: string;
+  tokenUsage?: TokenUsage;
+  durationMs?: number;
 }
 
 export interface Run {
@@ -46,4 +54,6 @@ export interface Run {
   nodeStates: Record<string, NodeRunState>;
   startedAt: string;
   completedAt?: string;
+  totalTokenUsage?: TokenUsage;
+  totalDurationMs?: number;
 }

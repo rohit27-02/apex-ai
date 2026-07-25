@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   ReactFlow,
   Background,
@@ -59,12 +59,13 @@ function distanceToSegment(p: Pt, a: Pt, b: Pt): number {
 
 interface WorkflowCanvasProps {
   run?: { nodeStates?: Record<string, { status: string }> } | null;
+  isRunning?: boolean;
   waitingGateNodeId?: string | null;
   onApproveGate?: (nodeId: string, feedback?: string) => void;
   onRejectGate?: (nodeId: string, feedback?: string) => void;
 }
 
-export function WorkflowCanvas({ run, waitingGateNodeId }: WorkflowCanvasProps) {
+export function WorkflowCanvas({ run, isRunning = false, waitingGateNodeId }: WorkflowCanvasProps) {
   const nodes = useWorkflowStore((s) => s.nodes);
   const edges = useWorkflowStore((s) => s.edges);
   const onNodesChange = useWorkflowStore((s) => s.onNodesChange);
@@ -79,6 +80,36 @@ export function WorkflowCanvas({ run, waitingGateNodeId }: WorkflowCanvasProps) 
 
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const reactFlowInstance = useRef<ReactFlowInstance | null>(null);
+  const prevRunningRef = useRef<string | null>(null);
+
+  // Auto-zoom: pan to the currently running node when it changes
+  useEffect(() => {
+    if (!run?.nodeStates || !reactFlowInstance.current) return;
+
+    const runningId = Object.entries(run.nodeStates).find(
+      ([, state]) => state.status === 'running',
+    )?.[0] ?? null;
+
+    // Only zoom on transitions (new node starts running)
+    if (runningId && runningId !== prevRunningRef.current) {
+      prevRunningRef.current = runningId;
+      const instance = reactFlowInstance.current;
+      const node = instance.getNode(runningId);
+      if (node) {
+        // Use setTimeout to ensure the node has been measured by ReactFlow
+        setTimeout(() => {
+          const measured = instance.getNode(runningId);
+          if (measured?.measured) {
+            const x = measured.position.x + (measured.measured.width ?? 200) / 2;
+            const y = measured.position.y + (measured.measured.height ?? 100) / 2;
+            instance.setCenter(x, y, { duration: 400, zoom: 1.0 });
+          }
+        }, 100);
+      }
+    } else if (!runningId) {
+      prevRunningRef.current = null;
+    }
+  }, [run?.nodeStates]);
 
   const onNodeClick = useCallback(
     (_: React.MouseEvent, node: { id: string }) => {
@@ -105,12 +136,14 @@ export function WorkflowCanvas({ run, waitingGateNodeId }: WorkflowCanvasProps) 
 
   // Drop handler — add node from library
   const onDragOver = useCallback((event: React.DragEvent) => {
+    if (isRunning) return;
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
-  }, []);
+  }, [isRunning]);
 
   const onDrop = useCallback(
     (event: React.DragEvent) => {
+      if (isRunning) return;
       event.preventDefault();
 
       const type = event.dataTransfer.getData('application/reactflow-type') as NodeType;
@@ -152,10 +185,11 @@ export function WorkflowCanvas({ run, waitingGateNodeId }: WorkflowCanvasProps) 
   // Delete selected elements on Backspace/Delete
   const onDelete = useCallback(
     (params: { nodes: { id: string }[]; edges: { id: string }[] }) => {
+      if (isRunning) return;
       params.nodes.forEach((n) => removeNode(n.id));
       params.edges.forEach((e) => removeEdge(e.id));
     },
-    [removeNode, removeEdge]
+    [removeNode, removeEdge, isRunning]
   );
 
   const defaultViewport = useMemo(() => ({ x: 0, y: 0, zoom: 0.8 }), []);
@@ -188,6 +222,33 @@ export function WorkflowCanvas({ run, waitingGateNodeId }: WorkflowCanvasProps) 
         proOptions={{ hideAttribution: true }}
         aria-label="Workflow canvas"
       >
+        {/* SVG arrow marker — inherits edge stroke color via context-stroke */}
+        <svg style={{ position: 'absolute', width: 0, height: 0 }}>
+          <defs>
+            <marker
+              id="arrow"
+              viewBox="0 0 10 10"
+              refX="8"
+              refY="5"
+              markerWidth="6"
+              markerHeight="6"
+              orient="auto-start-reverse"
+            >
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke" />
+            </marker>
+            <marker
+              id="arrow-failure"
+              viewBox="0 0 10 10"
+              refX="8"
+              refY="5"
+              markerWidth="6"
+              markerHeight="6"
+              orient="auto-start-reverse"
+            >
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#DC2626" />
+            </marker>
+          </defs>
+        </svg>
         <Background variant={BackgroundVariant.Dots} gap={24} size={2} color="var(--canvas-dot)" />
         <Controls
           showInteractive={false}

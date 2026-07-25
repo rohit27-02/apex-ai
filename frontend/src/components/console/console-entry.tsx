@@ -1,8 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { formatTimestamp, cn } from '@/lib/utils';
 import type { RunEvent, RunEventKind } from '@/types/run';
+import { useUIStore } from '@/stores/ui-store';
 import {
   Bot,
   Terminal,
@@ -11,6 +12,8 @@ import {
   AlertTriangle,
   RotateCcw,
   UserCheck,
+  ChevronRight,
+  ChevronDown,
 } from 'lucide-react';
 
 const EVENT_ICONS: Record<RunEventKind, React.ComponentType<{ className?: string }>> = {
@@ -50,6 +53,9 @@ interface ConsoleEntryProps {
 export function ConsoleEntry({ event }: ConsoleEntryProps) {
   const Icon = EVENT_ICONS[event.type] ?? Bot;
   const color = EVENT_COLORS[event.type] ?? 'text-muted-foreground';
+  const [expanded, setExpanded] = useState(false);
+  const openNodeDetail = useUIStore((s) => s.openNodeDetail);
+  const hasDetail = !!event.detail;
 
   return (
     <li className={cn(
@@ -66,9 +72,45 @@ export function ConsoleEntry({ event }: ConsoleEntryProps) {
           <span className="sr-only">{EVENT_LABELS[event.type]}: </span>
           {event.message}
         </div>
-        {event.detail && (
-          <div className="text-[10px] text-muted-foreground/60 mt-0.5 break-words font-mono">{event.detail}</div>
+
+        {/* Inline expandable detail */}
+        {hasDetail && (
+          <div className="mt-1">
+            <button
+              onClick={() => setExpanded((e) => !e)}
+              className="flex items-center gap-1 text-[10px] text-muted-foreground/70 hover:text-muted-foreground transition-colors cursor-pointer"
+              aria-expanded={expanded}
+            >
+              {expanded ? (
+                <ChevronDown className="h-2.5 w-2.5" />
+              ) : (
+                <ChevronRight className="h-2.5 w-2.5" />
+              )}
+              <span className="font-mono truncate max-w-[300px]">{event.detail}</span>
+            </button>
+            {expanded && (
+              <div className="mt-1 pl-3.5 border-l-2 border-border/50">
+                {event.type === 'command' ? (
+                  <code className="text-[10px] font-mono text-cyan-400/80 break-all whitespace-pre-wrap">
+                    {event.detail}
+                  </code>
+                ) : event.type === 'file_change' ? (
+                  <div className="flex items-center gap-2">
+                    <FileDiff className="h-3 w-3 text-[var(--color-event-file)]" />
+                    <span className="text-[10px] font-mono text-muted-foreground break-all">
+                      {event.detail}
+                    </span>
+                  </div>
+                ) : (
+                  <pre className="text-[10px] font-mono text-muted-foreground/80 whitespace-pre-wrap break-words max-h-32 overflow-y-auto">
+                    {event.detail}
+                  </pre>
+                )}
+              </div>
+            )}
+          </div>
         )}
+
         {event.type === 'error' && (
           <div className="text-[10px] text-destructive/80 mt-0.5 break-words font-mono font-medium">
             ERROR: {event.message}
@@ -80,9 +122,13 @@ export function ConsoleEntry({ event }: ConsoleEntryProps) {
           </div>
         )}
       </div>
-      <span className="text-[9px] text-muted-foreground/40 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity font-mono" aria-hidden="true">
+      <button
+        onClick={() => openNodeDetail(event.nodeId)}
+        className="text-[9px] text-muted-foreground/40 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity font-mono hover:text-muted-foreground cursor-pointer"
+        title="View node details"
+      >
         {event.nodeId}
-      </span>
+      </button>
     </li>
   );
 }

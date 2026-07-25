@@ -22,6 +22,18 @@ const NODE_OUTPUT_MAP: Record<string, string> = {
   'human-gate': 'Approved by reviewer',
 };
 
+// ── Simulated token usage and duration per node ──
+
+const NODE_STATS: Record<string, { tokenUsage: { input: number; output: number; total: number }; durationMs: number }> = {
+  input: { tokenUsage: { input: 320, output: 180, total: 500 }, durationMs: 1200 },
+  criteria: { tokenUsage: { input: 1800, output: 920, total: 2720 }, durationMs: 3400 },
+  planning: { tokenUsage: { input: 2400, output: 1100, total: 3500 }, durationMs: 4100 },
+  execution: { tokenUsage: { input: 4200, output: 2800, total: 7000 }, durationMs: 8200 },
+  validation: { tokenUsage: { input: 1600, output: 600, total: 2200 }, durationMs: 2800 },
+  decision: { tokenUsage: { input: 800, output: 200, total: 1000 }, durationMs: 900 },
+  'human-gate': { tokenUsage: { input: 0, output: 0, total: 0 }, durationMs: 0 },
+};
+
 // ── Scenario: Success (with human gate) ──
 
 const SUCCESS_EVENTS: Omit<RunEvent, 'id' | 'timestamp'>[] = [
@@ -205,14 +217,17 @@ function scheduleNextEvent() {
     const prevNodeIdx = activeDemo.currentNodeIndex;
 
     if (currentNodeInvolvedIdx >= 0 && currentNodeInvolvedIdx !== prevNodeIdx) {
-      // Mark previous nodes as success (with output)
+      // Mark previous nodes as success (with output and stats)
       for (let i = prevNodeIdx; i < currentNodeInvolvedIdx; i++) {
         const prevId = involvedNodes[i];
         if (prevId && activeDemo.run.nodeStates[prevId]?.status === 'running') {
+          const stats = NODE_STATS[prevId];
           activeDemo.run.nodeStates[prevId] = {
             status: 'success',
             completedAt: new Date().toISOString(),
             output: NODE_OUTPUT_MAP[prevId] ?? 'Completed',
+            tokenUsage: stats?.tokenUsage,
+            durationMs: stats?.durationMs,
           };
         }
       }
@@ -295,11 +310,14 @@ function finishDemo() {
   involvedNodes.forEach((id) => {
     const state = activeDemo!.run.nodeStates[id];
     if (state?.status === 'running' || state?.status === 'waiting') {
+      const stats = NODE_STATS[id];
       activeDemo!.run.nodeStates[id] = {
         status: isFailure ? 'failure' : 'success',
         completedAt: new Date().toISOString(),
         output: isFailure ? undefined : NODE_OUTPUT_MAP[id] ?? 'Completed',
         error: isFailure ? 'Validation failed after max retries' : undefined,
+        tokenUsage: stats?.tokenUsage,
+        durationMs: stats?.durationMs,
       };
     }
   });
@@ -335,6 +353,8 @@ export function approveDemoGate(): void {
     status: 'success',
     completedAt: new Date().toISOString(),
     output: 'Approved by reviewer',
+    tokenUsage: NODE_STATS['human-gate']?.tokenUsage,
+    durationMs: NODE_STATS['human-gate']?.durationMs,
   };
 
   activeDemo.onUpdate({ ...activeDemo.run });
@@ -358,6 +378,8 @@ export function rejectDemoGate(): void {
     status: 'failure',
     completedAt: new Date().toISOString(),
     error: 'Rejected by reviewer',
+    tokenUsage: NODE_STATS['human-gate']?.tokenUsage,
+    durationMs: NODE_STATS['human-gate']?.durationMs,
   };
   activeDemo.run.status = 'stopped';
   activeDemo.run.completedAt = new Date().toISOString();

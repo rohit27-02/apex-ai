@@ -1,6 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import {
   type Node,
   type Edge,
@@ -39,7 +40,7 @@ interface WorkflowState {
 
 const NODE_DEFAULTS: Record<NodeType, { name: string; config: Record<string, unknown> }> = {
   input: { name: 'New Input', config: { objective: '', constraints: [] } },
-  agent: { name: 'New Agent', config: { model: '', instructions: '', tools: [] } },
+  agent: { name: 'New Agent', config: { model: '', instructions: '', tools: [], template: 'other' } },
   command: { name: 'New Command', config: { command: '', timeout: 60000 } },
   validator: { name: 'New Validator', config: { criteria: [], retryLimit: 3 } },
   decision: { name: 'New Decision', config: { condition: '' } },
@@ -75,10 +76,12 @@ function workflowToReactFlow(wf: Workflow): { nodes: Node[]; edges: Edge[] } {
 
 const initial = workflowToReactFlow(DEFAULT_WORKFLOW);
 
-export const useWorkflowStore = create<WorkflowState>((set, get) => ({
-  workflow: DEFAULT_WORKFLOW,
-  nodes: initial.nodes,
-  edges: initial.edges,
+export const useWorkflowStore = create<WorkflowState>()(
+  persist(
+    (set, get) => ({
+      workflow: DEFAULT_WORKFLOW,
+      nodes: initial.nodes,
+      edges: initial.edges,
   selectedNodeId: null,
 
   setWorkflow: (workflow) => {
@@ -231,7 +234,6 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
         ...connection,
         id: `e-${connection.source}-${connection.target}-${Date.now()}`,
         type: 'default',
-        label: outcome === 'failure' ? 'rejected' : outcome === 'success' ? 'approved' : '',
         data: outcome ? { outcome } : undefined,
       };
       const newWorkflowEdge = {
@@ -240,7 +242,6 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
         target: connection.target!,
         sourceHandle: connection.sourceHandle ?? undefined,
         targetHandle: connection.targetHandle ?? undefined,
-        label: (newEdge.label as string) ?? '',
         type: 'default' as const,
         outcome,
       };
@@ -255,21 +256,18 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     }),
 
   setEdgeOutcome: (edgeId, outcome) =>
-    set((state) => {
-      const label = outcome === 'failure' ? 'rejected' : 'approved';
-      return {
-        edges: state.edges.map((e) =>
-          e.id === edgeId ? { ...e, label, data: { ...(e.data ?? {}), outcome } } : e
+    set((state) => ({
+      edges: state.edges.map((e) =>
+        e.id === edgeId ? { ...e, data: { ...(e.data ?? {}), outcome } } : e
+      ),
+      workflow: {
+        ...state.workflow,
+        edges: state.workflow.edges.map((e) =>
+          e.id === edgeId ? { ...e, outcome } : e
         ),
-        workflow: {
-          ...state.workflow,
-          edges: state.workflow.edges.map((e) =>
-            e.id === edgeId ? { ...e, outcome, label } : e
-          ),
-          updatedAt: new Date().toISOString(),
-        },
-      };
-    }),
+        updatedAt: new Date().toISOString(),
+      },
+    })),
 
   insertNodeOnEdge: (type, position, edgeId) =>
     set((state) => {
@@ -295,12 +293,11 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
         source,
         target,
         type: edgeType,
-        label: '',
       });
       const inEdge = mk(edge.source, id);
       const outEdge = mk(id, edge.target);
       const toWf = (e: Edge) => ({
-        id: e.id, source: e.source, target: e.target, label: '',
+        id: e.id, source: e.source, target: e.target,
         type: edgeType,
       });
 
@@ -360,4 +357,6 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       return { nodes: updatedNodes };
     });
   },
-}));
+}),
+{ name: 'apex-workflow' }
+));

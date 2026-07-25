@@ -121,8 +121,9 @@ class RunCreateRequest(BaseModel):
     maxAttempts: int
     # Optional execution settings — defaults keep older requests valid.
     runner: str = "stub"               # "stub" | "aider"
-    model: str | None = None           # aider model override, e.g. "groq/llama-3.3-70b-versatile"
+    model: str | None = None           # model override, e.g. "groq/llama-3.3-70b-versatile"
     api_key: str | None = None         # BYOK: per-run key; overrides backend .env keys
+    base_url: str | None = None        # custom base URL for OpenAI-compatible endpoints
     repo_path: str = ""                # target repo; falls back to workflow.repo_path
     auto_approve: bool = True          # False = human gate really pauses
     green_command: str | None = None   # baseline suite re-run after rollback

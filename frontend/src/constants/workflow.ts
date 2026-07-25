@@ -20,26 +20,12 @@ export const DEFAULT_WORKFLOW: Workflow = {
       name: 'Success Criteria Agent',
       config: {
         role: 'criteria',
-        model: 'claude-sonnet-4-20250514',
+        model: '',
         instructions: 'Convert the engineering objective into measurable completion criteria.',
         tools: ['read_file', 'list_files'],
-        // Hybrid mode: pre-confirmed, command-based criteria the backend's
-        // deterministic validator executes (verdict = exit codes, no LLM).
-        // These run against the target repo (NEXT_PUBLIC_TARGET_REPO).
-        criteria: [
-          {
-            id: 'c1',
-            description: 'All tests pass',
-            command: 'python -m pytest -q',
-            expect_exit_code: 0,
-          },
-          {
-            id: 'c2',
-            description: 'Todo store module still present',
-            command: 'test -f app/todos.py',
-            expect_exit_code: 0,
-          },
-        ],
+        // No hardcoded criteria — the agent generates them from the objective
+        // using the criteria prompt template. This is "hybrid" mode: the agent
+        // proposes criteria, the user reviews them in the run dialog.
       },
       position: { x: 350, y: 300 },
     },
@@ -48,7 +34,8 @@ export const DEFAULT_WORKFLOW: Workflow = {
       type: 'agent',
       name: 'Planning Agent',
       config: {
-        model: 'claude-sonnet-4-20250514',
+        role: 'planning',
+        model: '',
         instructions: 'Create a concrete implementation plan naming real files and modules.',
         tools: ['read_file', 'list_files', 'search'],
       },
@@ -59,7 +46,8 @@ export const DEFAULT_WORKFLOW: Workflow = {
       type: 'agent',
       name: 'Execution Agent',
       config: {
-        model: 'claude-sonnet-4-20250514',
+        role: 'execution',
+        model: '',
         instructions: 'Implement the changes according to the plan.',
         tools: ['read_file', 'write_file', 'edit_file', 'run_command', 'search'],
       },
@@ -116,15 +104,12 @@ export const DEFAULT_WORKFLOW: Workflow = {
     { id: 'e-planning-execution', source: 'planning', target: 'execution', type: 'default' },
     { id: 'e-execution-validation', source: 'execution', target: 'validation', type: 'default' },
     { id: 'e-validation-decision', source: 'validation', target: 'decision', type: 'default' },
-    // Decision outputs — the human-gate edge comes FIRST: the backend follows
-    // the first matching edge, so a passing validation routes through review.
-    { id: 'e-decision-human', source: 'decision', target: 'human-gate', label: 'review', type: 'default' },
-    { id: 'e-decision-success', source: 'decision', target: 'success', label: 'pass', type: 'success' },
-    // Fail loop-back — routes ABOVE the main flow using top handles
-    { id: 'e-decision-planning', source: 'decision', sourceHandle: 'top-source', target: 'planning', targetHandle: 'top-target', label: 'fail', type: 'failure' },
-    // Human gate outputs
-    { id: 'e-human-success', source: 'human-gate', target: 'success', label: 'approved', type: 'success' },
-    { id: 'e-human-stop', source: 'human-gate', target: 'stop', label: 'rejected', type: 'failure' },
+    // Decision: pass (right upper) → human gate, fail (right lower) → loop back to planning
+    { id: 'e-decision-human', source: 'decision', sourceHandle: 'source-right', target: 'human-gate', type: 'success' },
+    { id: 'e-decision-planning', source: 'decision', sourceHandle: 'source-bottom', target: 'planning', targetHandle: 'top-target', type: 'failure' },
+    // Human gate: approve (right upper) → success, reject (right lower) → stop
+    { id: 'e-human-success', source: 'human-gate', sourceHandle: 'source-right', target: 'success', type: 'success' },
+    { id: 'e-human-stop', source: 'human-gate', sourceHandle: 'source-bottom', target: 'stop', type: 'failure' },
   ],
 };
 

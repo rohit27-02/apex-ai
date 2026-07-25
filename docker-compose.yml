@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  backend:
+    build: 
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "8000:8000"
+    environment:
+      # Automatically pass any environment variables if needed
+      - PYTHONUNBUFFERED=1
+    # If you have an .env file, uncomment this:
+    # env_file:
+    #   - .env
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      # Tell the frontend where the backend is located in the browser.
+      # If you access from a separate machine, this must be the public IP of the machine hosting docker.
+      # Because the frontend makes requests from the user's browser, NOT from within docker.
+      - NEXT_PUBLIC_API_BASE=http://localhost:8000
+    depends_on:
+      - backend

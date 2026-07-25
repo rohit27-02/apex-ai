@@ -1,15 +1,23 @@
-'use client';
+"use client";
 
-import React, { memo, useState, useRef, useEffect } from 'react';
-import { Handle, Position } from '@xyflow/react';
-import type { NodeProps } from '@xyflow/react';
-import { cn } from '@/lib/utils';
-import { NODE_TYPE_CONFIG } from '@/constants/node-types';
-import { STATUS_LABELS } from '@/constants/status';
-import type { NodeType, NodeStatus } from '@/types/workflow';
-import { useWorkflowStore } from '@/stores/workflow-store';
-import { useUIStore } from '@/stores/ui-store';
-import { Trash2, Pencil, Loader2, CheckCircle2, XCircle, Clock, FileText } from 'lucide-react';
+import React, { memo, useState, useRef, useEffect } from "react";
+import { Handle, Position } from "@xyflow/react";
+import type { NodeProps } from "@xyflow/react";
+import { cn } from "@/lib/utils";
+import { NODE_TYPE_CONFIG } from "@/constants/node-types";
+import { STATUS_LABELS } from "@/constants/status";
+import type { NodeType, NodeStatus } from "@/types/workflow";
+import { useWorkflowStore } from "@/stores/workflow-store";
+import { useUIStore } from "@/stores/ui-store";
+import {
+  Trash2,
+  Pencil,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  FileText,
+} from "lucide-react";
 
 interface BaseNodeData {
   label: string;
@@ -18,10 +26,14 @@ interface BaseNodeData {
   status?: string;
   output?: string;
   error?: string;
+  durationMs?: number;
+  logs?: string[] | null;
+  incoming?: string;
+  outgoing?: string;
 }
 
 function StatusBadge({ status }: { status: NodeStatus }) {
-  if (status === 'idle' || status === 'skipped') return null;
+  if (status === "idle" || status === "skipped") return null;
 
   const icons: Record<string, React.ReactNode> = {
     running: <Loader2 className="h-3 w-3 animate-spin" />,
@@ -31,18 +43,18 @@ function StatusBadge({ status }: { status: NodeStatus }) {
   };
 
   const colors: Record<string, string> = {
-    running: 'bg-[#E20074] text-white',
-    success: 'bg-green-500 text-white',
-    failure: 'bg-red-500 text-white',
-    waiting: 'bg-amber-500 text-white',
+    running: "bg-[#E20074] text-white",
+    success: "bg-green-500 text-white",
+    failure: "bg-red-500 text-white",
+    waiting: "bg-amber-500 text-white",
   };
 
   return (
     <div
       className={cn(
-        'absolute -top-2.5 -left-2.5 z-20 flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider shadow-md',
+        "absolute -top-2.5 -left-2.5 z-20 flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider shadow-md",
         colors[status],
-        status === 'running' && 'animate-magenta-pulse',
+        status === "running" && "animate-magenta-pulse",
       )}
     >
       {icons[status]}
@@ -83,7 +95,7 @@ function BaseNode({ id, data, selected }: NodeProps) {
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (isEditing) return;
-    if (e.key === 'Enter' || e.key === ' ') {
+    if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       handleClick();
     }
@@ -104,9 +116,9 @@ function BaseNode({ id, data, selected }: NodeProps) {
   };
 
   const handleRenameKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       handleRenameConfirm();
-    } else if (e.key === 'Escape') {
+    } else if (e.key === "Escape") {
       setIsEditing(false);
     }
   };
@@ -121,50 +133,55 @@ function BaseNode({ id, data, selected }: NodeProps) {
     openNodeDetail(id);
   };
 
-  const configSummary = getConfigSummary(nodeType, nodeData.config);
-  const nodeStatus = (nodeData.status as NodeStatus) ?? 'idle';
-  const hasRunData = nodeStatus !== 'idle' && nodeStatus !== 'skipped';
+  const configSummary = getConfigSummary(nodeType, nodeData.config, nodeData);
+  const nodeStatus = (nodeData.status as NodeStatus) ?? "idle";
+  const hasRunData = nodeStatus !== "idle" && nodeStatus !== "skipped";
+  const isRunning = nodeStatus === "running";
 
   return (
     <div
       role="button"
       tabIndex={0}
-      aria-label={`${nodeData.label} node, ${nodeConfig.label} type, status: ${STATUS_LABELS[nodeStatus] ?? 'Idle'}`}
+      aria-label={`${nodeData.label} node, ${nodeConfig.label} type, status: ${STATUS_LABELS[nodeStatus] ?? "Idle"}`}
       aria-selected={selected}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
       onKeyDown={handleKeyDown}
       className={cn(
-        'group relative min-w-[200px] rounded-xl border p-3.5 cursor-pointer transition-all duration-200',
-        'bg-card',
-        'hover:shadow-lg',
-        selected && 'ring-2 ring-primary ring-offset-2 ring-offset-background',
+        "group relative w-[220px] max-w-[220px] rounded-xl border p-3.5 cursor-pointer transition-all duration-200",
+        "bg-card",
+        "hover:shadow-lg",
+        selected && "ring-2 ring-primary ring-offset-2 ring-offset-background",
         // Status-driven border colors
-        nodeStatus === 'running' && 'border-[#E20074] animate-magenta-pulse',
-        nodeStatus === 'success' && 'border-green-500',
-        nodeStatus === 'failure' && 'border-red-500',
-        nodeStatus === 'waiting' && 'border-amber-500',
-        nodeStatus === 'skipped' && 'border-muted-foreground/30 opacity-60',
+        nodeStatus === "running" && "border-[#E20074] animate-magenta-pulse",
+        nodeStatus === "success" && "border-green-500",
+        nodeStatus === "failure" && "border-red-500",
+        nodeStatus === "waiting" && "border-amber-500",
+        nodeStatus === "skipped" && "border-muted-foreground/30 opacity-60",
         // Default border when idle
-        nodeStatus === 'idle' && 'border-border',
+        nodeStatus === "idle" && "border-border",
       )}
-      style={{ boxShadow: 'var(--node-shadow)' }}
+      style={{ boxShadow: "var(--node-shadow)" }}
     >
       {/* Status badge */}
       <StatusBadge status={nodeStatus} />
 
-      {/* Delete button */}
-      <button
-        onClick={handleDelete}
-        className={`absolute -top-3 -right-3 z-10 h-8 w-8 cursor-pointer flex items-center justify-center transition-all ${
-          selected ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto'
-        }`}
-        aria-label={`Delete ${nodeData.label} node`}
-      >
-        <div className="h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center hover:brightness-110 transition-colors shadow-md">
-          <Trash2 className="h-3 w-3" />
-        </div>
-      </button>
+      {/* Delete button — hidden when running */}
+      {!isRunning && (
+        <button
+          onClick={handleDelete}
+          className={`absolute -top-3 -right-3 z-10 h-8 w-8 cursor-pointer flex items-center justify-center transition-all ${
+            selected
+              ? "opacity-100 scale-100"
+              : "opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto"
+          }`}
+          aria-label={`Delete ${nodeData.label} node`}
+        >
+          <div className="h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center hover:brightness-110 transition-colors shadow-md">
+            <Trash2 className="h-3 w-3" />
+          </div>
+        </button>
+      )}
 
       {/* Header */}
       <div className="flex items-center gap-2.5 mb-2.5">
@@ -217,14 +234,58 @@ function BaseNode({ id, data, selected }: NodeProps) {
         </div>
       )}
 
+      {/* Incoming / Outgoing info — shown when node has run data */}
+      {hasRunData && (nodeData.incoming || nodeData.outgoing) && (
+        <div className="mt-1.5 space-y-0.5">
+          {nodeData.incoming && (
+            <div className="text-[9px] text-muted-foreground/70 truncate" title={`In: ${nodeData.incoming}`}>
+              <span className="text-muted-foreground/40">→</span> {nodeData.incoming}
+            </div>
+          )}
+          {nodeData.outgoing && (
+            <div className="text-[9px] text-muted-foreground/70 truncate" title={`Out: ${nodeData.outgoing}`}>
+              <span className="text-muted-foreground/40">←</span> {nodeData.outgoing}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Inline logs when running — fixed height and width, shows last 10 lines */}
+      {isRunning && nodeData.logs && nodeData.logs.length > 0 && (
+        <div className="mt-2 border-t border-border/50 pt-1.5 h-[120px] overflow-hidden">
+          <div className="font-mono text-[9px] leading-[12px] text-foreground/70 space-y-px overflow-hidden">
+            {nodeData.logs.slice(-10).map((line: string, i: number) => (
+              <div
+                key={i}
+                className={cn(
+                  "truncate max-w-[200px]",
+                  line.startsWith("  ✗") && "text-red-400",
+                  line.startsWith("  ✓") && "text-emerald-400",
+                  line.startsWith("$") && "text-cyan-400/80",
+                  line.startsWith("---") && "text-muted-foreground/50",
+                  line.startsWith("[") && "text-amber-400/80",
+                )}
+              >
+                {line}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Detail expand button — shown when node has run data */}
       {hasRunData && (
         <button
           onClick={handleShowDetail}
-          className="absolute bottom-1.5 right-1.5 z-10 h-6 w-6 flex items-center justify-center rounded-md bg-background/80 border border-border/50 text-muted-foreground hover:text-foreground hover:bg-background transition-all opacity-0 group-hover:opacity-100"
+          className="absolute bottom-1.5 right-1.5 z-10 flex items-center gap-1 h-6 px-1.5 rounded-md bg-background/80 border border-border/50 text-muted-foreground hover:text-foreground hover:bg-background transition-all opacity-0 group-hover:opacity-100"
           aria-label={`View details for ${nodeData.label}`}
           title="View run details"
         >
+          {nodeData.logs && nodeData.logs.length > 0 && (
+            <span className="text-[9px] font-mono tabular-nums">
+              {nodeData.logs.length}
+            </span>
+          )}
           <FileText className="h-3 w-3" />
         </button>
       )}
@@ -234,58 +295,82 @@ function BaseNode({ id, data, selected }: NodeProps) {
         type="target"
         position={Position.Left}
         className={`!w-3 !h-3 !border-2 before:content-[''] before:absolute before:-inset-2 before:bg-transparent before:rounded-full ${
-          selected ? '!bg-primary !border-primary' : '!bg-muted-foreground/50 !border-muted-foreground/70 hover:!bg-primary hover:!border-primary'
+          selected
+            ? "!bg-primary !border-primary"
+            : "!bg-muted-foreground/50 !border-muted-foreground/70 hover:!bg-primary hover:!border-primary"
         }`}
         aria-label="Input connection"
       />
+      {/* Primary output — pass/approve (right side) */}
       <Handle
         type="source"
         position={Position.Right}
+        id="source-right"
         className={`!w-3 !h-3 !border-2 before:content-[''] before:absolute before:-inset-2 before:bg-transparent before:rounded-full ${
-          selected ? '!bg-primary !border-primary' : '!bg-muted-foreground/50 !border-muted-foreground/70 hover:!bg-primary hover:!border-primary'
+          selected
+            ? "!bg-primary !border-primary"
+            : "!bg-emerald-500/70 !border-emerald-500/80 hover:!bg-emerald-500 hover:!border-emerald-500"
         }`}
-        aria-label="Output connection"
+        aria-label="Pass / approve output"
       />
+      {/* Secondary output — fail/reject (right side, offset down) */}
+      {(nodeType === "decision" || nodeType === "human_gate") && (
+        <Handle
+          type="source"
+          position={Position.Right}
+          id="source-bottom"
+          style={{ top: "75%" }}
+          className={`!w-3 !h-3 !border-2 before:content-[''] before:absolute before:-inset-2 before:bg-transparent before:rounded-full ${
+            selected
+              ? "!bg-primary !border-primary"
+              : "!bg-red-500/70 !border-red-500/80 hover:!bg-red-500 hover:!border-red-500"
+          }`}
+          aria-label="Fail / reject output"
+        />
+      )}
+      {/* Top handle for loop-back input only */}
       <Handle
         type="target"
         id="top-target"
         position={Position.Top}
         className={`!w-3 !h-3 !border-2 before:content-[''] before:absolute before:-inset-2 before:bg-transparent before:rounded-full ${
-          selected ? '!bg-primary !border-primary' : '!bg-muted-foreground/50 !border-muted-foreground/70 hover:!bg-primary hover:!border-primary'
+          selected
+            ? "!bg-primary !border-primary"
+            : "!bg-muted-foreground/50 !border-muted-foreground/70 hover:!bg-primary hover:!border-primary"
         }`}
-        aria-label="Top input connection"
-      />
-      <Handle
-        type="source"
-        id="top-source"
-        position={Position.Top}
-        className={`!w-3 !h-3 !border-2 before:content-[''] before:absolute before:-inset-2 before:bg-transparent before:rounded-full ${
-          selected ? '!bg-primary !border-primary' : '!bg-muted-foreground/50 !border-muted-foreground/70 hover:!bg-primary hover:!border-primary'
-        }`}
-        aria-label="Top output connection"
+        aria-label="Loop-back input"
       />
     </div>
   );
 }
 
-function getConfigSummary(nodeType: NodeType, config: Record<string, unknown>): string | null {
+function getConfigSummary(
+  nodeType: NodeType,
+  config: Record<string, unknown>,
+  nodeData?: BaseNodeData,
+): string | null {
   switch (nodeType) {
-    case 'input':
-      return (config.objective as string) || 'No objective set';
-    case 'agent':
-      return `Model: ${config.model ?? 'none'} · ${(config.tools as string[])?.length ?? 0} tools`;
-    case 'command':
-      return (config.command as string) || 'No command';
-    case 'validator':
+    case "input":
+      return (config.objective as string) || "No objective set";
+    case "agent": {
+      const base = `Model: ${config.model ?? "none"} · ${(config.tools as string[])?.length ?? 0} tools`;
+      const duration = nodeData?.durationMs
+        ? ` · ${(nodeData.durationMs / 1000).toFixed(1)}s`
+        : "";
+      return base + duration;
+    }
+    case "command":
+      return (config.command as string) || "No command";
+    case "validator":
       return `${(config.criteria as string[])?.length ?? 0} criteria · Retry: ${config.retryLimit ?? 1}`;
-    case 'decision':
-      return (config.condition as string) || 'No condition';
-    case 'human_gate':
-      return config.required ? 'Required approval' : 'Optional approval';
-    case 'success':
-      return (config.message as string) || 'Complete';
-    case 'stop':
-      return (config.reason as string) || 'Stopped';
+    case "decision":
+      return (config.condition as string) || "No condition";
+    case "human_gate":
+      return config.required ? "Required approval" : "Optional approval";
+    case "success":
+      return (config.message as string) || "Complete";
+    case "stop":
+      return (config.reason as string) || "Stopped";
     default:
       return null;
   }
@@ -294,17 +379,21 @@ function getConfigSummary(nodeType: NodeType, config: Record<string, unknown>): 
 export const InputNode = memo((props: NodeProps) => <BaseNode {...props} />);
 export const AgentNode = memo((props: NodeProps) => <BaseNode {...props} />);
 export const CommandNode = memo((props: NodeProps) => <BaseNode {...props} />);
-export const ValidatorNode = memo((props: NodeProps) => <BaseNode {...props} />);
+export const ValidatorNode = memo((props: NodeProps) => (
+  <BaseNode {...props} />
+));
 export const DecisionNode = memo((props: NodeProps) => <BaseNode {...props} />);
-export const HumanGateNode = memo((props: NodeProps) => <BaseNode {...props} />);
+export const HumanGateNode = memo((props: NodeProps) => (
+  <BaseNode {...props} />
+));
 export const SuccessNode = memo((props: NodeProps) => <BaseNode {...props} />);
 export const StopNode = memo((props: NodeProps) => <BaseNode {...props} />);
 
-InputNode.displayName = 'InputNode';
-AgentNode.displayName = 'AgentNode';
-CommandNode.displayName = 'CommandNode';
-ValidatorNode.displayName = 'ValidatorNode';
-DecisionNode.displayName = 'DecisionNode';
-HumanGateNode.displayName = 'HumanGateNode';
-SuccessNode.displayName = 'SuccessNode';
-StopNode.displayName = 'StopNode';
+InputNode.displayName = "InputNode";
+AgentNode.displayName = "AgentNode";
+CommandNode.displayName = "CommandNode";
+ValidatorNode.displayName = "ValidatorNode";
+DecisionNode.displayName = "DecisionNode";
+HumanGateNode.displayName = "HumanGateNode";
+SuccessNode.displayName = "SuccessNode";
+StopNode.displayName = "StopNode";

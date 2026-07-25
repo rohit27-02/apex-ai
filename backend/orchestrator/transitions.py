@@ -34,28 +34,6 @@ def decide_next(
     node: WorkflowNode,
     result: HandlerResult,
 ) -> Transition:
-    # Validation failed. Two graph shapes are supported:
-    #   a) validator has a failure edge -> retry directly (our default loop)
-    #   b) validator has ONLY a success edge into a Decision node -> the
-    #      decision routes the failure (Person C's canvas default)
-    if node.type == NodeType.validator and result.outcome == FAILURE:
-        fail_target = workflow.next_node(node.id, FAILURE)
-        if fail_target is None:
-            onward = workflow.next_node(node.id, "success")
-            if onward is not None:
-                return Transition(CONTINUE, onward,
-                                  reason="failure delegated to decision node")
-        if attempts.has_budget(run):
-            return Transition(RETRY, fail_target, reason="validation failed, retrying")
-        return Transition(EXHAUSTED, None, reason="retry budget exhausted")
-
-    # Decision routed to its failure path: that IS the retry loop-back.
-    if node.type == NodeType.decision and result.outcome == FAILURE:
-        fail_target = workflow.next_node(node.id, FAILURE)
-        if fail_target is not None and attempts.has_budget(run):
-            return Transition(RETRY, fail_target, reason="decision failed, retrying")
-        return Transition(EXHAUSTED, None, reason="retry budget exhausted")
-
     # Human gate is waiting on a real person.
     if result.outcome == AWAITING:
         return Transition(PAUSE, None, reason="awaiting human approval")
@@ -64,6 +42,29 @@ def decide_next(
     if node.type in (NodeType.success, NodeType.stop):
         return Transition(TERMINAL, None, reason="terminal node")
 
-    # Normal edge traversal on the handler's outcome.
+    # ── Failure handling (generic for all node types) ──
+    if result.outcome == FAILURE:
+        fail_target = workflow.next_node(node.id, FAILURE)
+
+        # Node has a failure edge → follow it (retry loop-back).
+        if fail_target is not None:
+            if attempts.has_budget(run):
+                return Transition(RETRY, fail_target,
+                                  reason=f"{node.type.value} failed, retrying via failure edge")
+            return Transition(EXHAUSTED, None, reason="retry budget exhausted")
+
+        # Validator without a failure edge → delegate to success edge (Decision node).
+        if node.type == NodeType.validator:
+            onward = workflow.next_node(node.id, "success")
+            if onward is not None:
+                return Transition(CONTINUE, onward,
+                                  reason="failure delegated to decision node")
+
+        # Any node without a failure edge but with budget → stop safely.
+        # Agent/command failures without a failure edge are not retried.
+        return Transition(EXHAUSTED, None,
+                          reason=f"{node.type.value} failed, no retry path configured")
+
+    # ── Success / normal traversal ──
     target = workflow.next_node(node.id, result.outcome)
     return Transition(CONTINUE, target, reason=f"edge on {result.outcome}")

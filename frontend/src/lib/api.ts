@@ -37,7 +37,7 @@ export async function createRun(
   const backendWorkflow = toBackendWorkflow(workflow);
   // BYOK: runner/model/key come from the frontend settings (env vars are
   // fallbacks so a headless setup still works).
-  const { runner, model, apiKey } = getExecutionSettings();
+  const { runner, model, apiKey, baseUrl } = getExecutionSettings();
   const data = await request<BackendRunState>('/runs', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -45,11 +45,11 @@ export async function createRun(
       workflow: backendWorkflow,
       objective,
       maxAttempts: maxAttempts ?? workflow.maxAttempts,
-      // Real human gate: pause the loop until the reviewer decides.
       auto_approve: false,
       runner: runner || process.env.NEXT_PUBLIC_RUNNER || 'stub',
       model: model || null,
       api_key: apiKey || null,
+      base_url: baseUrl || null,
       repo_path: process.env.NEXT_PUBLIC_TARGET_REPO ?? '',
       green_command: process.env.NEXT_PUBLIC_GREEN_COMMAND ?? null,
     }),

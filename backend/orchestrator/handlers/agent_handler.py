@@ -26,7 +26,16 @@ def _load_prompt(ctx: HandlerContext, name: str) -> str:
 
 
 def _resolve_role(node: WorkflowNode) -> str:
-    return node.config.get("role") or node.id
+    """Resolve the agent role from config or node name/id."""
+    role = node.config.get("role")
+    if role:
+        return role
+    # Fallback: infer from node name or id
+    name = (node.name or node.id).lower()
+    for keyword in ("criteria", "planning", "execution"):
+        if keyword in name:
+            return keyword
+    return node.id
 
 
 def _build_prompt(ctx: HandlerContext, role: str, template: str) -> str:
@@ -129,34 +138,61 @@ def _try_parse_generated_criteria(ctx: HandlerContext, result) -> None:
     """Best-effort parse of agent-generated criteria JSON from the transcript."""
     try:
         from pathlib import Path
+        import re
 
         text = Path(result.transcript_path).read_text() if result.transcript_path else ""
-        start = text.find('{"criteria"')
-        if start == -1:
-            start = text.find('"criteria"')
-            start = text.rfind("{", 0, start) if start != -1 else -1
-        if start == -1:
+        if not text:
             return
-        depth, end = 0, -1
-        for i in range(start, len(text)):
-            if text[i] == "{":
-                depth += 1
-            elif text[i] == "}":
-                depth -= 1
-                if depth == 0:
-                    end = i + 1
-                    break
-        if end == -1:
-            return
-        data = json.loads(text[start:end])
-        ctx.run.criteria = [
-            Criterion(
-                id=c["id"],
-                description=c.get("description", c["id"]),
-                command=c["command"],
-                expect_exit_code=c.get("expect_exit_code", 0),
-            )
-            for c in data.get("criteria", [])
+
+        # Try multiple patterns to find the criteria JSON
+        patterns = [
+            r'\{"criteria"\s*:\s*\[',  # {"criteria": [
+            r'"criteria"\s*:\s*\[',     # "criteria": [
         ]
+
+        for pattern in patterns:
+            match = re.search(pattern, text)
+            if not match:
+                continue
+
+            # Find the opening { before "criteria"
+            start = text.rfind("{", 0, match.start())
+            if start == -1:
+                continue
+
+            # Find the matching closing }
+            depth = 0
+            end = -1
+            for i in range(start, min(start + 10000, len(text))):
+                if text[i] == "{":
+                    depth += 1
+                elif text[i] == "}":
+                    depth -= 1
+                    if depth == 0:
+                        end = i + 1
+                        break
+
+            if end == -1:
+                continue
+
+            try:
+                data = json.loads(text[start:end])
+                criteria_list = data.get("criteria", [])
+                if criteria_list:
+                    ctx.run.criteria = [
+                        Criterion(
+                            id=c.get("id", f"c{i+1}"),
+                            description=c.get("description", c.get("name", f"Criterion {i+1}")),
+                            command=c.get("command", c.get("check", "")),
+                            expect_exit_code=c.get("expect_exit_code", 0),
+                        )
+                        for i, c in enumerate(criteria_list)
+                    ]
+                    return
+            except json.JSONDecodeError:
+                continue
+
+    except Exception:
+        pass  # Best-effort; configured criteria are the reliable path
     except Exception:
         pass  # generation is best-effort; configured criteria are the reliable path

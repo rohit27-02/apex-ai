@@ -111,7 +111,7 @@ export function RunConsole({ events }: RunConsoleProps) {
                   Waiting for events...
                 </div>
               ) : (
-                <ul className="space-y-px" role="list">
+                <ul className="space-y-px" role="log" aria-live="polite" aria-label="Run event log">
                   {filteredEvents.map((event) => (
                     <ConsoleEntry key={event.id} event={event} />
                   ))}

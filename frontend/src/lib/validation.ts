@@ -25,6 +25,12 @@ export const CriteriaItemSchema = z.object({
   evidence: z.string().optional(),
 });
 
+export const TokenUsageSchema = z.object({
+  input: z.number(),
+  output: z.number(),
+  total: z.number(),
+});
+
 export const NodeRunStateSchema = z.object({
   status: z.enum(['idle', 'running', 'success', 'failure', 'skipped', 'waiting']),
   output: z.string().optional(),
@@ -32,6 +38,8 @@ export const NodeRunStateSchema = z.object({
   logs: z.array(z.string()).optional(),
   startedAt: z.string().optional(),
   completedAt: z.string().optional(),
+  tokenUsage: TokenUsageSchema.optional(),
+  durationMs: z.number().optional(),
 });
 
 export const RunSchema = z.object({
@@ -45,6 +53,8 @@ export const RunSchema = z.object({
   nodeStates: z.record(z.string(), NodeRunStateSchema),
   startedAt: z.string(),
   completedAt: z.string().optional(),
+  totalTokenUsage: TokenUsageSchema.optional(),
+  totalDurationMs: z.number().optional(),
 });
 
 export type ValidatedRun = z.infer<typeof RunSchema>;
